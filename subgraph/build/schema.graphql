@@ -1,0 +1,11 @@
+type Asset @entity {
+  id: ID!
+  volume: BigInt!
+}
+
+type Test @entity {
+  id: ID!
+  input: String!
+  price: BigInt!
+  token: String!
+}
