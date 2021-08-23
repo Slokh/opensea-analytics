@@ -60,6 +60,7 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
   const getUsdTokensAtTimestamp = async (timestamp: number) => {
     const block = await blockNumberForTimestamp(timestamp);
+    console.log(new Date(timestamp * 1000), block);
     return await getVolumeAtBlock(block);
   };
 
@@ -90,9 +91,15 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
         await getUsdTokensAtTimestamp(currentDay),
         await getUsdTokensAtTimestamp(currentWeek),
         await getUsdTokensAtTimestamp(currentMonth),
-        await getUsdTokensAtTimestamp(toUTC(subDays(currentDay, 1))),
-        await getUsdTokensAtTimestamp(toUTC(subWeeks(currentWeek, 1))),
-        await getUsdTokensAtTimestamp(toUTC(subMonths(currentMonth, 1))),
+        await getUsdTokensAtTimestamp(
+          subDays(currentDay * 1000, 1).getTime() / 1000
+        ),
+        await getUsdTokensAtTimestamp(
+          subWeeks(currentWeek * 1000, 1).getTime() / 1000
+        ),
+        await getUsdTokensAtTimestamp(
+          subMonths(currentMonth * 1000, 1).getTime() / 1000
+        ),
       ]);
 
       setDailyStartTokens(dailyStartTokens);
@@ -157,21 +164,30 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
   const value = {
     ethPrice: prices[WETH],
-    dailyVolume: usdVolume(currentTokens) - usdVolume(dailyStartTokens),
-    weeklyVolume: usdVolume(currentTokens) - usdVolume(weeklyStartTokens),
-    monthlyVolume: usdVolume(currentTokens) - usdVolume(monthlyStartTokens),
+    dailyVolume: dailyStartTokens?.length
+      ? usdVolume(currentTokens) - usdVolume(dailyStartTokens)
+      : 0,
+    weeklyVolume: weeklyStartTokens?.length
+      ? usdVolume(currentTokens) - usdVolume(weeklyStartTokens)
+      : 0,
+    monthlyVolume: monthlyStartTokens?.length
+      ? usdVolume(currentTokens) - usdVolume(monthlyStartTokens)
+      : 0,
     previousDailyVolume:
       usdVolume(dailyStartTokens) - usdVolume(previousDailyStartTokens),
     previousWeeklyVolume:
       usdVolume(weeklyStartTokens) - usdVolume(previousWeeklyStartTokens),
     previousMonthlyVolume:
       usdVolume(monthlyStartTokens) - usdVolume(previousMonthlyStartTokens),
-    dailyQuantity:
-      totalQuantity(currentTokens) - totalQuantity(dailyStartTokens),
-    weeklyQuantity:
-      totalQuantity(currentTokens) - totalQuantity(weeklyStartTokens),
-    monthlyQuantity:
-      totalQuantity(currentTokens) - totalQuantity(monthlyStartTokens),
+    dailyQuantity: dailyStartTokens?.length
+      ? totalQuantity(currentTokens) - totalQuantity(dailyStartTokens)
+      : 0,
+    weeklyQuantity: weeklyStartTokens?.length
+      ? totalQuantity(currentTokens) - totalQuantity(weeklyStartTokens)
+      : 0,
+    monthlyQuantity: monthlyStartTokens?.length
+      ? totalQuantity(currentTokens) - totalQuantity(monthlyStartTokens)
+      : 0,
     previousDailyQuantity:
       totalQuantity(dailyStartTokens) - totalQuantity(previousDailyStartTokens),
     previousWeeklyQuantity:
