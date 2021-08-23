@@ -1,15 +1,32 @@
-import { ChainId, Config, DAppProvider } from "@usedapp/core";
+import { ChakraProvider } from "@chakra-ui/react";
 import type { AppProps } from "next/app";
-
-const config: Config = {
-  readOnlyChainId: ChainId.Mainnet,
-};
+import theme from "../theme";
+import Head from "next/head";
+import { OpenSeaProvider } from "../context/opensea";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <DAppProvider config={config}>
-      <Component {...pageProps} />
-    </DAppProvider>
+    <OpenSeaProvider>
+      <ChakraProvider theme={theme}>
+        <Head>
+          <title>OpenSea Analytics</title>
+          <link
+            href="favicon-32x32.png"
+            rel="icon"
+            sizes="32x32"
+            type="image/png"
+          />
+          <link
+            href="favicon-16x16.png"
+            rel="icon"
+            sizes="16x16"
+            type="image/png"
+          />
+        </Head>
+        <Component {...pageProps} />
+      </ChakraProvider>
+    </OpenSeaProvider>
   );
 }
+
 export default MyApp;

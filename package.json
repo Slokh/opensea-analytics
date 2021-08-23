@@ -13,14 +13,13 @@
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11.3.0",
     "@fontsource/poppins": "^4.5.0",
-    "@usedapp/coingecko": "^0.3.22",
-    "@usedapp/core": "^0.4.4",
     "date-fns": "^2.23.0",
+    "date-fns-tz": "^1.1.6",
     "ethers": "^5.4.5",
     "framer-motion": "^4.1.17",
-    "lodash": "^4.17.21",
     "next": "11.1.0",
     "react": "17.0.2",
+    "react-animated-number": "^0.4.4",
     "react-dom": "17.0.2"
   },
   "devDependencies": {

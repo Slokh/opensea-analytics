@@ -1,159 +1,158 @@
-import { Contract, ethers } from "ethers";
+import { useInterval } from "@chakra-ui/react";
+import {
+  addMinutes,
+  startOfDay,
+  startOfWeek,
+  startOfMonth,
+  subDays,
+  subWeeks,
+  subMonths,
+} from "date-fns";
+import { BigNumber } from "ethers";
 import { formatUnits } from "ethers/lib/utils";
 import { createContext, useContext, useEffect, useState } from "react";
+import {
+  blockNumberForTimestamp,
+  getLastProcessedBlock,
+  getVolumeAtBlock,
+  tokenPrices,
+} from "../utils";
+import { DECIMALS, NULL_ADDRESS, WETH } from "../utils/constants";
 
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
-const WETH = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-
-type Asset = {
-  id: string;
-  volume: string;
+type Volume = {
+  [key: string]: BigNumber;
 };
 
-type Assets = {
-  [key: string]: number;
+type State = {
+  ethPrice: number;
+  dailyVolume: number;
+  weeklyVolume: number;
+  monthlyVolume: number;
+  previousDailyVolume: number;
+  previousWeeklyVolume: number;
+  previousMonthlyVolume: number;
 };
 
-type State = { blockNumber: number; totalVolume: number };
 type OpenSeaProviderProps = {
-  provider: ethers.providers.Web3Provider;
   children: React.ReactNode;
 };
 
 const OpenSeaContext = createContext<State | undefined>(undefined);
 
-const OpenSeaProvider = ({ provider, children }: OpenSeaProviderProps) => {
-  const [blockNumber, setBlockNumber] = useState<number>(0);
-  const [totalVolume, setTotalVolume] = useState<number>(0);
+const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
+  const [lastProcessedBlock, setLastProcessedBlock] = useState(0);
+  const [prices, setPrices] = useState<{
+    [key: string]: number;
+  }>({});
+  const [dailyStartVolume, setDailyStartVolume] = useState<Volume>();
+  const [weeklyStartVolume, setWeeklyStartVolume] = useState<Volume>();
+  const [monthlyStartVolume, setMonthlyStartVolume] = useState<Volume>();
+  const [previousDailyStartVolume, setPreviousDailyStartVolume] =
+    useState<Volume>();
+  const [previousWeeklyStartVolume, setPreviousWeeklyStartVolume] =
+    useState<Volume>();
+  const [previousMonthlyStartVolume, setPreviousMonthlyStartVolume] =
+    useState<Volume>();
+  const [currentVolume, setCurrentVolume] = useState<Volume>();
 
-  const blockNumberForTimestamp = async (timestamp: number) => {
-    const data = await fetch(
-      `https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=after&apikey=${process.env.NEXT_PUBLIC_ETHERSCAN_API}`
-    );
-    const { result } = await data.json();
-    return parseInt(result, 10);
+  const getUsdVolumeAtTimestamp = async (timestamp: number) => {
+    const block = await blockNumberForTimestamp(timestamp);
+    return await getVolumeAtBlock(block);
   };
 
-  const tokenPrices = async (
-    tokens: string[]
-  ): Promise<{ [key: string]: number }> => {
-    const BATCH_SIZE = 50;
-    let prices: { [key: string]: number } = {};
-    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
-      const data = await fetch(
-        `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=${tokens
-          .slice(i, i + BATCH_SIZE)
-          .join(",")}&vs_currencies=usd`
+  const toUTC = (date: Date) =>
+    date.getTime() / 1000 - date.getTimezoneOffset() * 60;
+
+  useEffect(() => {
+    const init = async () => {
+      const now = new Date();
+      const currentDay = toUTC(
+        startOfDay(addMinutes(now, now.getTimezoneOffset()))
+      );
+      const currentWeek = toUTC(
+        startOfWeek(addMinutes(now, now.getTimezoneOffset()))
+      );
+      const currentMonth = toUTC(
+        startOfMonth(addMinutes(now, now.getTimezoneOffset()))
       );
 
-      const json = await data.json();
-      Object.keys(json).forEach((key) => {
-        prices[key] = parseFloat(json[key].usd);
-      });
-    }
+      const [
+        dailyStartVolume,
+        weeklyStartVolume,
+        monthlyStartVolume,
+        previousDailyStartVolume,
+        previousWeeklyStartVolume,
+        previousMonthlyStartVolume,
+      ] = await Promise.all([
+        await getUsdVolumeAtTimestamp(currentDay),
+        await getUsdVolumeAtTimestamp(currentWeek),
+        await getUsdVolumeAtTimestamp(currentMonth),
+        await getUsdVolumeAtTimestamp(toUTC(subDays(currentDay, 1))),
+        await getUsdVolumeAtTimestamp(toUTC(subWeeks(currentWeek, 1))),
+        await getUsdVolumeAtTimestamp(toUTC(subMonths(currentMonth, 1))),
+      ]);
 
-    return prices;
-  };
+      setDailyStartVolume(dailyStartVolume);
+      setWeeklyStartVolume(weeklyStartVolume);
+      setMonthlyStartVolume(monthlyStartVolume);
+      setPreviousDailyStartVolume(previousDailyStartVolume);
+      setPreviousWeeklyStartVolume(previousWeeklyStartVolume);
+      setPreviousMonthlyStartVolume(previousMonthlyStartVolume);
+    };
+    init();
+  }, []);
 
-  const tokenDecimals = async (
-    tokens: string[]
-  ): Promise<{ [key: string]: number }> => {
-    let decimals: { [key: string]: number } = {};
-    for (let i in tokens) {
-      const address = tokens[i];
-      const erc20 = new Contract(
-        address,
-        ["function decimals() view returns (uint8)"],
-        provider
+  useEffect(() => {
+    const fetchCurrentVolume = async () => {
+      const currentVolume = await getVolumeAtBlock();
+      const tokens = Object.keys(currentVolume).filter(
+        (token) => token !== NULL_ADDRESS
       );
-      decimals[address] = await erc20.decimals();
+
+      setPrices(await tokenPrices(tokens));
+
+      setCurrentVolume(currentVolume);
+    };
+    fetchCurrentVolume();
+  }, [lastProcessedBlock]);
+
+  useInterval(async () => {
+    const block = await getLastProcessedBlock();
+    if (block !== lastProcessedBlock) {
+      setLastProcessedBlock(block);
     }
-    return decimals;
-  };
+  }, 10000);
 
-  const volumeAtBlock = async (block?: number) => {
-    const query = `{
-      assets(first: 1000 ${block ? `, block: { number: ${block} } ` : ""}) {
-        id
-        volume
-      }
-    }`;
+  const usdVolume = (volume?: Volume) => {
+    if (!volume) {
+      return 0;
+    }
 
-    const response = await fetch(
-      "https://api.studio.thegraph.com/query/6515/opensea/v0.4.0",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    const {
-      data: { assets },
-    }: { data: { assets: Asset[] } } = await response.json();
-
-    const tokens = assets
-      .map(({ id }) => `0x${id}`)
-      .filter((id) => id !== NULL_ADDRESS);
-
-    const [decimals, prices] = await Promise.all([
-      tokenDecimals(tokens),
-      tokenPrices(tokens),
-    ]);
-
-    const volumes = assets.reduce(
-      (acc: any, { id, volume }: { id: string; volume: string }) => {
-        const address = id === NULL_ADDRESS.slice(2) ? WETH : `0x${id}`;
-
-        if (!acc[address]) {
-          acc[address] = 0;
-        }
-
-        acc[address] =
-          acc[address] + parseFloat(formatUnits(volume, decimals[address]));
-
-        return acc;
-      },
-      {}
-    );
-
-    return Object.keys(volumes).reduce((acc, key) => {
+    return Object.keys(volume).reduce((acc, key) => {
       if (prices[key]) {
-        return acc + volumes[key] * prices[key];
+        return (
+          acc +
+          parseFloat(formatUnits(volume[key], DECIMALS[key])) * prices[key]
+        );
       }
 
       return acc;
     }, 0);
   };
 
-  useEffect(() => {
-    const call = async () => {
-      // const currentBlock = await provider.getBlockNumber();
-      // setBlockNumber(currentBlock);
+  const value = {
+    ethPrice: prices[WETH],
+    dailyVolume: usdVolume(currentVolume) - usdVolume(dailyStartVolume),
+    weeklyVolume: usdVolume(currentVolume) - usdVolume(weeklyStartVolume),
+    monthlyVolume: usdVolume(currentVolume) - usdVolume(monthlyStartVolume),
+    previousDailyVolume:
+      usdVolume(dailyStartVolume) - usdVolume(previousDailyStartVolume),
+    previousWeeklyVolume:
+      usdVolume(weeklyStartVolume) - usdVolume(previousWeeklyStartVolume),
+    previousMonthlyVolume:
+      usdVolume(monthlyStartVolume) - usdVolume(previousMonthlyStartVolume),
+  };
 
-      // const now = new Date();
-      // let startBlock = await blockNumberForTimestamp(
-      //   startOfDay(now).getTime() / 1000 - now.getTimezoneOffset() * 60
-      // );
-
-      // Generate the query
-
-      // const april1 = await blockNumberForTimestamp(1617235200);
-      // const april30 = await blockNumberForTimestamp(1619827199);
-
-      setTotalVolume(await volumeAtBlock());
-    };
-
-    call();
-  }, []);
-
-  provider.on("block", (blockNumber: number) => {
-    setBlockNumber(blockNumber);
-  });
-
-  const value = { blockNumber, totalVolume };
   return (
     <OpenSeaContext.Provider value={value}>{children}</OpenSeaContext.Provider>
   );
