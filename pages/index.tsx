@@ -6,7 +6,6 @@ import {
   SimpleGrid,
   Spacer,
   Stack,
-  StackDivider,
   Text,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
@@ -29,7 +28,7 @@ const DisplayItem = ({
   valueFormatter: (n: number) => string;
   description?: string;
 }) => (
-  <Flex w="xs" p={2} direction="column">
+  <Flex w="xs" p={4} direction="column">
     <Text
       fontWeight="medium"
       fontSize="xs"
@@ -70,7 +69,7 @@ const DisplayGroup = ({
   children: React.ReactNode;
 }) => (
   <Flex
-    p={6}
+    p={4}
     direction="column"
     borderColor="#2D3841"
     borderRightWidth={1}
@@ -78,7 +77,7 @@ const DisplayGroup = ({
     _even={{ borderRightWidth: 0 }}
   >
     <Heading fontSize="lg">{title}</Heading>
-    <SimpleGrid pt={2} columns={{ base: 1, lg: 2 }}>
+    <SimpleGrid pt={2} columns={{ base: 1, xl: 2 }}>
       {children}
     </SimpleGrid>
   </Flex>
@@ -199,7 +198,7 @@ const Home: NextPage = () => (
       <MonthlyQuantity />
     </SimpleGrid>
     <Spacer />
-    <Stack
+    <Flex
       w="full"
       p={2}
       fontSize="sm"
@@ -207,18 +206,27 @@ const Home: NextPage = () => (
       direction="row"
       align="center"
       spacing={1}
-      justify="flex-end"
+      justify="space-between"
       borderColor="#2D3841"
       borderTopWidth={1}
     >
-      <Text color="#C0C3C6">made by</Text>
-      <Flex align="center" fontWeight="semibold">
-        <Image w={4} h={4} mr={0.5} src="twitter.svg" />
-        <Link href="https://twitter.com/Slokh" _hover={{ color: "#C0C3C6" }}>
-          Slokh
-        </Link>
-      </Flex>
-    </Stack>
+      <Text>ETH only (Polygon soon)</Text>
+      <Stack
+        fontSize="sm"
+        fontWeight="normal"
+        direction="row"
+        align="center"
+        spacing={1}
+      >
+        <Text color="#C0C3C6">made by</Text>
+        <Flex align="center" fontWeight="semibold">
+          <Image w={4} h={4} mr={0.5} src="twitter.svg" />
+          <Link href="https://twitter.com/Slokh" _hover={{ color: "#C0C3C6" }}>
+            Slokh
+          </Link>
+        </Flex>
+      </Stack>
+    </Flex>
   </Stack>
 );
 
