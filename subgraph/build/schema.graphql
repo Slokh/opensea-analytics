@@ -1,11 +1,5 @@
-type Asset @entity {
+type Token @entity {
   id: ID!
   volume: BigInt!
-}
-
-type Test @entity {
-  id: ID!
-  input: String!
-  price: BigInt!
-  token: String!
+  quantity: Int!
 }

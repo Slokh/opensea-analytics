@@ -1,25 +1,23 @@
-import { BigInt } from "@graphprotocol/graph-ts";
-import { Asset } from "../generated/schema";
-import { OrdersMatched } from "../generated/WyvernExchange/WyvernExchange";
+import { Address, BigInt } from "@graphprotocol/graph-ts";
+import { Token } from "../generated/schema";
+import { AtomicMatch_Call } from "../generated/WyvernExchange/WyvernExchange";
 
-export function handleOrdersMatched(event: OrdersMatched): void {
-  let bytes = event.transaction.input.toHexString();
+export function handleAtomicMatch_(call: AtomicMatch_Call): void {
+  let callInputs = call.inputs;
+  let addrs: Address[] = callInputs.addrs;
+  let uints: BigInt[] = callInputs.uints;
 
-  let method = bytes.slice(0, 10);
-  if (method == "0xab834bab") {
-    let token = bytes
-      .slice(10)
-      .slice(6 * 64, 7 * 64)
-      .slice(24)
-      .toString();
+  let price: BigInt = uints[4];
+  let paymentToken = addrs[6].toHexString();
 
-    let asset = Asset.load(token);
-    if (asset == null) {
-      asset = new Asset(token);
-      asset.volume = BigInt.fromI32(0);
-    }
-
-    asset.volume = asset.volume.plus(event.params.price);
-    asset.save();
+  let token = Token.load(paymentToken);
+  if (token == null) {
+    token = new Token(paymentToken);
+    token.volume = BigInt.fromI32(0);
+    token.quantity = 0;
   }
+
+  token.volume = token.volume.plus(price);
+  token.quantity = token.quantity + 1;
+  token.save();
 }

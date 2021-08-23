@@ -12,7 +12,7 @@ import {
   BigDecimal
 } from "@graphprotocol/graph-ts";
 
-export class Asset extends Entity {
+export class Token extends Entity {
   constructor(id: string) {
     super();
     this.set("id", Value.fromString(id));
@@ -20,17 +20,17 @@ export class Asset extends Entity {
 
   save(): void {
     let id = this.get("id");
-    assert(id !== null, "Cannot save Asset entity without an ID");
+    assert(id !== null, "Cannot save Token entity without an ID");
     assert(
       id.kind == ValueKind.STRING,
-      "Cannot save Asset entity with non-string ID. " +
+      "Cannot save Token entity with non-string ID. " +
         'Considering using .toHex() to convert the "id" to a string.'
     );
-    store.set("Asset", id.toString(), this);
+    store.set("Token", id.toString(), this);
   }
 
-  static load(id: string): Asset | null {
-    return store.get("Asset", id) as Asset | null;
+  static load(id: string): Token | null {
+    return store.get("Token", id) as Token | null;
   }
 
   get id(): string {
@@ -50,62 +50,13 @@ export class Asset extends Entity {
   set volume(value: BigInt) {
     this.set("volume", Value.fromBigInt(value));
   }
-}
 
-export class Test extends Entity {
-  constructor(id: string) {
-    super();
-    this.set("id", Value.fromString(id));
+  get quantity(): i32 {
+    let value = this.get("quantity");
+    return value.toI32();
   }
 
-  save(): void {
-    let id = this.get("id");
-    assert(id !== null, "Cannot save Test entity without an ID");
-    assert(
-      id.kind == ValueKind.STRING,
-      "Cannot save Test entity with non-string ID. " +
-        'Considering using .toHex() to convert the "id" to a string.'
-    );
-    store.set("Test", id.toString(), this);
-  }
-
-  static load(id: string): Test | null {
-    return store.get("Test", id) as Test | null;
-  }
-
-  get id(): string {
-    let value = this.get("id");
-    return value.toString();
-  }
-
-  set id(value: string) {
-    this.set("id", Value.fromString(value));
-  }
-
-  get input(): string {
-    let value = this.get("input");
-    return value.toString();
-  }
-
-  set input(value: string) {
-    this.set("input", Value.fromString(value));
-  }
-
-  get price(): BigInt {
-    let value = this.get("price");
-    return value.toBigInt();
-  }
-
-  set price(value: BigInt) {
-    this.set("price", Value.fromBigInt(value));
-  }
-
-  get token(): string {
-    let value = this.get("token");
-    return value.toString();
-  }
-
-  set token(value: string) {
-    this.set("token", Value.fromString(value));
+  set quantity(value: i32) {
+    this.set("quantity", Value.fromI32(value));
   }
 }

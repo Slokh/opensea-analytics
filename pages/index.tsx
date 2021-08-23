@@ -1,5 +1,6 @@
 import {
   Flex,
+  Heading,
   Image,
   Link,
   SimpleGrid,
@@ -9,113 +10,216 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
+import React from "react";
 //@ts-ignore
 import AnimatedNumber from "react-animated-number";
 import { useOpenSea } from "../context/opensea";
 
+const commify = (n: number | string) =>
+  n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+const DisplayItem = ({
+  label,
+  value,
+  valueFormatter,
+  description,
+}: {
+  label: string;
+  value: number;
+  valueFormatter: (n: number) => string;
+  description?: string;
+}) => (
+  <Flex w="xs" p={2} direction="column">
+    <Text
+      fontWeight="medium"
+      fontSize="xs"
+      textTransform="uppercase"
+      color="#C0C3C6"
+    >
+      {label}
+    </Text>
+    <Text fontSize="3xl" fontWeight="bold">
+      <AnimatedNumber
+        component="text"
+        // @ts-ignore
+        value={value}
+        style={{
+          transition: "0.8s ease-out",
+          transitionProperty: "background-color, color, opacity",
+        }}
+        duration={2000}
+        formatValue={valueFormatter}
+      />
+    </Text>
+    <Text
+      fontSize="sm"
+      fontWeight="semibold"
+      textTransform="uppercase"
+      color="#C0C3C6"
+    >
+      {description}
+    </Text>
+  </Flex>
+);
+
+const DisplayGroup = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <Flex
+    p={6}
+    direction="column"
+    borderColor="#2D3841"
+    borderRightWidth={1}
+    borderBottomWidth={1}
+    _even={{ borderRightWidth: 0 }}
+  >
+    <Heading fontSize="lg">{title}</Heading>
+    <SimpleGrid pt={2} columns={{ base: 1, lg: 2 }}>
+      {children}
+    </SimpleGrid>
+  </Flex>
+);
+
 const VolumeItem = ({ label, value }: { label: string; value: number }) => {
   const { ethPrice } = useOpenSea();
 
-  const format = (value: number) =>
-    value
-      .toFixed(2)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (
+    <DisplayItem
+      label={label}
+      value={value}
+      valueFormatter={(value: number) => `$${commify(value.toFixed(2))}`}
+      description={`${commify(
+        (value && ethPrice ? value / ethPrice : 0).toFixed(2)
+      )} ETH`}
+    />
+  );
+};
+
+const QuantityItem = ({ label, value }: { label: string; value: number }) => {
+  return (
+    <DisplayItem
+      label={label}
+      value={value}
+      valueFormatter={(value: number) => commify(value.toFixed(0))}
+      description="NFTs sold"
+    />
+  );
+};
+
+const DailyVolume = () => {
+  const { dailyVolume, previousDailyVolume } = useOpenSea();
 
   return (
-    <Flex
-      direction="column"
-      p={8}
-      pt={6}
-      pb={6}
+    <DisplayGroup title="Daily Volume">
+      <VolumeItem label="Today" value={dailyVolume} />
+      <VolumeItem label="Yesterday" value={previousDailyVolume} />
+    </DisplayGroup>
+  );
+};
+
+const WeeklyVolume = () => {
+  const { weeklyVolume, previousWeeklyVolume } = useOpenSea();
+
+  return (
+    <DisplayGroup title="Weekly Volume">
+      <VolumeItem label="This Week" value={weeklyVolume} />
+      <VolumeItem label="Last Week" value={previousWeeklyVolume} />
+    </DisplayGroup>
+  );
+};
+
+const MonthlyVolume = () => {
+  const { monthlyVolume, previousMonthlyVolume } = useOpenSea();
+
+  return (
+    <DisplayGroup title="Monthly Volume">
+      <VolumeItem label="This Month" value={monthlyVolume} />
+      <VolumeItem label="Last Month" value={previousMonthlyVolume} />
+    </DisplayGroup>
+  );
+};
+
+const DailyQuantity = () => {
+  const { dailyQuantity, previousDailyQuantity } = useOpenSea();
+
+  return (
+    <DisplayGroup title="Daily Quantity">
+      <QuantityItem label="Today" value={dailyQuantity} />
+      <QuantityItem label="Yesterday" value={previousDailyQuantity} />
+    </DisplayGroup>
+  );
+};
+
+const WeeklyQuantity = () => {
+  const { weeklyQuantity, previousWeeklyQuantity } = useOpenSea();
+
+  return (
+    <DisplayGroup title="Weekly Quantity">
+      <QuantityItem label="This Week" value={weeklyQuantity} />
+      <QuantityItem label="Last Week" value={previousWeeklyQuantity} />
+    </DisplayGroup>
+  );
+};
+
+const MonthlyQuantity = () => {
+  const { monthlyQuantity, previousMonthlyQuantity } = useOpenSea();
+
+  return (
+    <DisplayGroup title="Monthly Quantity">
+      <QuantityItem label="This Month" value={monthlyQuantity} />
+      <QuantityItem label="Last Month" value={previousMonthlyQuantity} />
+    </DisplayGroup>
+  );
+};
+
+const Home: NextPage = () => (
+  <Stack minH="100vh" w="full" spacing={0}>
+    <Stack
+      direction="row"
       borderColor="#2D3841"
-      borderRightWidth={1}
       borderBottomWidth={1}
-      _even={{ borderRightWidth: 0 }}
+      align="center"
+      p={6}
     >
-      <Text
-        fontWeight="semibold"
-        fontSize="sm"
-        textTransform="uppercase"
-        color="#C0C3C6"
-      >
-        {label}
+      <Image h={8} w={8} src="opensea.svg" />
+      <Text fontSize="xl" fontWeight="bold">
+        OpenSea Analytics
       </Text>
-      <Text fontSize="4xl">
-        <AnimatedNumber
-          component="text"
-          // @ts-ignore
-          value={value}
-          style={{
-            transition: "0.8s ease-out",
-            transitionProperty: "background-color, color, opacity",
-          }}
-          duration={2000}
-          formatValue={(n: number) => `$${format(n)}`}
-        />
-      </Text>
-      <Text fontSize="sm" textTransform="uppercase" color="#C0C3C6">
-        {format(value && ethPrice ? value / ethPrice : 0)} ETH
-      </Text>
-    </Flex>
-  );
-};
-
-const Home: NextPage = () => {
-  const {
-    dailyVolume,
-    weeklyVolume,
-    monthlyVolume,
-    previousDailyVolume,
-    previousWeeklyVolume,
-    previousMonthlyVolume,
-  } = useOpenSea();
-
-  return (
-    <Stack minH="100vh" w="full" spacing={0}>
-      <Stack
-        direction="row"
-        borderColor="#2D3841"
-        borderBottomWidth={1}
-        align="center"
-        p={6}
-      >
-        <Image h={8} w={8} src="opensea.svg" />
-        <Text fontSize="xl" fontWeight="bold">
-          OpenSea Analytics
-        </Text>
-      </Stack>
-      <SimpleGrid columns={2}>
-        <VolumeItem label="Today's volume" value={dailyVolume} />
-        <VolumeItem label="Yesterday's volume" value={previousDailyVolume} />
-        <VolumeItem label="This week's volume" value={weeklyVolume} />
-        <VolumeItem label="Last week's volume" value={previousWeeklyVolume} />
-        <VolumeItem label="This month's volume" value={monthlyVolume} />
-        <VolumeItem label="Last month's volume" value={previousMonthlyVolume} />
-      </SimpleGrid>
-      <Spacer />
-      <Stack
-        w="full"
-        p={2}
-        fontSize="sm"
-        fontWeight="normal"
-        direction="row"
-        align="center"
-        spacing={1}
-        justify="flex-end"
-        borderColor="#2D3841"
-        borderTopWidth={1}
-      >
-        <Text color="#C0C3C6">made by</Text>
-        <Flex align="center" fontWeight="semibold">
-          <Image w={4} h={4} mr={0.5} src="twitter.svg" />
-          <Link href="https://twitter.com/Slokh" _hover={{ color: "#C0C3C6" }}>
-            Slokh
-          </Link>
-        </Flex>
-      </Stack>
     </Stack>
-  );
-};
+    <SimpleGrid columns={{ base: 1, md: 2 }}>
+      <DailyVolume />
+      <DailyQuantity />
+      <WeeklyVolume />
+      <WeeklyQuantity />
+      <MonthlyVolume />
+      <MonthlyQuantity />
+    </SimpleGrid>
+    <Spacer />
+    <Stack
+      w="full"
+      p={2}
+      fontSize="sm"
+      fontWeight="normal"
+      direction="row"
+      align="center"
+      spacing={1}
+      justify="flex-end"
+      borderColor="#2D3841"
+      borderTopWidth={1}
+    >
+      <Text color="#C0C3C6">made by</Text>
+      <Flex align="center" fontWeight="semibold">
+        <Image w={4} h={4} mr={0.5} src="twitter.svg" />
+        <Link href="https://twitter.com/Slokh" _hover={{ color: "#C0C3C6" }}>
+          Slokh
+        </Link>
+      </Flex>
+    </Stack>
+  </Stack>
+);
 
 export default Home;

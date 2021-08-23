@@ -8,17 +8,19 @@ dataSources:
     source:
       address: "0x7be8076f4ea4a4ad08075c2508e481d6c946d12b"
       abi: WyvernExchange
-      startBlock: 11565019
+      # startBlock: 5774644 # Start Block
+      # startBlock: 11565019 # January 1st, 2021
+      startBlock: 12738509 # July 1st, 2021
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
-        - OrdersMatched
+        - OpenSeaSale
       abis:
         - name: WyvernExchange
           file: ./abis/WyvernExchange.json
-      eventHandlers:
-        - event: OrdersMatched(bytes32,bytes32,indexed address,indexed address,uint256,indexed bytes32)
-          handler: handleOrdersMatched
+      callHandlers:
+        - function: atomicMatch_(address[14],uint256[18],uint8[8],bytes,bytes,bytes,bytes,bytes,bytes,uint8[2],bytes32[5])
+          handler: handleAtomicMatch_
       file: ./src/mapping.ts

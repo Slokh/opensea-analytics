@@ -15,13 +15,10 @@ import {
   blockNumberForTimestamp,
   getLastProcessedBlock,
   getVolumeAtBlock,
+  Token,
   tokenPrices,
 } from "../utils";
 import { DECIMALS, NULL_ADDRESS, WETH } from "../utils/constants";
-
-type Volume = {
-  [key: string]: BigNumber;
-};
 
 type State = {
   ethPrice: number;
@@ -31,6 +28,12 @@ type State = {
   previousDailyVolume: number;
   previousWeeklyVolume: number;
   previousMonthlyVolume: number;
+  dailyQuantity: number;
+  weeklyQuantity: number;
+  monthlyQuantity: number;
+  previousDailyQuantity: number;
+  previousWeeklyQuantity: number;
+  previousMonthlyQuantity: number;
 };
 
 type OpenSeaProviderProps = {
@@ -44,18 +47,18 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const [prices, setPrices] = useState<{
     [key: string]: number;
   }>({});
-  const [dailyStartVolume, setDailyStartVolume] = useState<Volume>();
-  const [weeklyStartVolume, setWeeklyStartVolume] = useState<Volume>();
-  const [monthlyStartVolume, setMonthlyStartVolume] = useState<Volume>();
-  const [previousDailyStartVolume, setPreviousDailyStartVolume] =
-    useState<Volume>();
-  const [previousWeeklyStartVolume, setPreviousWeeklyStartVolume] =
-    useState<Volume>();
-  const [previousMonthlyStartVolume, setPreviousMonthlyStartVolume] =
-    useState<Volume>();
-  const [currentVolume, setCurrentVolume] = useState<Volume>();
+  const [dailyStartTokens, setDailyStartTokens] = useState<Token[]>();
+  const [weeklyStartTokens, setWeeklyStartTokens] = useState<Token[]>();
+  const [monthlyStartTokens, setMonthlyStartTokens] = useState<Token[]>();
+  const [previousDailyStartTokens, setPreviousDailyStartTokens] =
+    useState<Token[]>();
+  const [previousWeeklyStartTokens, setPreviousWeeklyStartTokens] =
+    useState<Token[]>();
+  const [previousMonthlyStartTokens, setPreviousMonthlyStartTokens] =
+    useState<Token[]>();
+  const [currentTokens, setCurrentTokens] = useState<Token[]>();
 
-  const getUsdVolumeAtTimestamp = async (timestamp: number) => {
+  const getUsdTokensAtTimestamp = async (timestamp: number) => {
     const block = await blockNumberForTimestamp(timestamp);
     return await getVolumeAtBlock(block);
   };
@@ -77,43 +80,43 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
       );
 
       const [
-        dailyStartVolume,
-        weeklyStartVolume,
-        monthlyStartVolume,
-        previousDailyStartVolume,
-        previousWeeklyStartVolume,
-        previousMonthlyStartVolume,
+        dailyStartTokens,
+        weeklyStartTokens,
+        monthlyStartTokens,
+        previousDailyStartTokens,
+        previousWeeklyStartTokens,
+        previousMonthlyStartTokens,
       ] = await Promise.all([
-        await getUsdVolumeAtTimestamp(currentDay),
-        await getUsdVolumeAtTimestamp(currentWeek),
-        await getUsdVolumeAtTimestamp(currentMonth),
-        await getUsdVolumeAtTimestamp(toUTC(subDays(currentDay, 1))),
-        await getUsdVolumeAtTimestamp(toUTC(subWeeks(currentWeek, 1))),
-        await getUsdVolumeAtTimestamp(toUTC(subMonths(currentMonth, 1))),
+        await getUsdTokensAtTimestamp(currentDay),
+        await getUsdTokensAtTimestamp(currentWeek),
+        await getUsdTokensAtTimestamp(currentMonth),
+        await getUsdTokensAtTimestamp(toUTC(subDays(currentDay, 1))),
+        await getUsdTokensAtTimestamp(toUTC(subWeeks(currentWeek, 1))),
+        await getUsdTokensAtTimestamp(toUTC(subMonths(currentMonth, 1))),
       ]);
 
-      setDailyStartVolume(dailyStartVolume);
-      setWeeklyStartVolume(weeklyStartVolume);
-      setMonthlyStartVolume(monthlyStartVolume);
-      setPreviousDailyStartVolume(previousDailyStartVolume);
-      setPreviousWeeklyStartVolume(previousWeeklyStartVolume);
-      setPreviousMonthlyStartVolume(previousMonthlyStartVolume);
+      setDailyStartTokens(dailyStartTokens);
+      setWeeklyStartTokens(weeklyStartTokens);
+      setMonthlyStartTokens(monthlyStartTokens);
+      setPreviousDailyStartTokens(previousDailyStartTokens);
+      setPreviousWeeklyStartTokens(previousWeeklyStartTokens);
+      setPreviousMonthlyStartTokens(previousMonthlyStartTokens);
     };
     init();
   }, []);
 
   useEffect(() => {
-    const fetchCurrentVolume = async () => {
-      const currentVolume = await getVolumeAtBlock();
-      const tokens = Object.keys(currentVolume).filter(
-        (token) => token !== NULL_ADDRESS
-      );
+    const fetchCurrentTokens = async () => {
+      const currentTokens = await getVolumeAtBlock();
+      const tokens = currentTokens
+        .map(({ id }) => id)
+        .filter((token) => token !== NULL_ADDRESS);
 
       setPrices(await tokenPrices(tokens));
 
-      setCurrentVolume(currentVolume);
+      setCurrentTokens(currentTokens);
     };
-    fetchCurrentVolume();
+    fetchCurrentTokens();
   }, [lastProcessedBlock]);
 
   useInterval(async () => {
@@ -123,16 +126,18 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
     }
   }, 10000);
 
-  const usdVolume = (volume?: Volume) => {
-    if (!volume) {
+  const usdVolume = (tokens?: Token[]) => {
+    if (!tokens) {
       return 0;
     }
 
-    return Object.keys(volume).reduce((acc, key) => {
-      if (prices[key]) {
+    return tokens.reduce((acc, { id, volume }) => {
+      const address = id === NULL_ADDRESS ? WETH : id;
+      if (prices[address]) {
         return (
           acc +
-          parseFloat(formatUnits(volume[key], DECIMALS[key])) * prices[key]
+          parseFloat(formatUnits(BigNumber.from(volume), DECIMALS[address])) *
+            prices[address]
         );
       }
 
@@ -140,17 +145,41 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
     }, 0);
   };
 
+  const totalQuantity = (tokens?: Token[]) => {
+    if (!tokens) {
+      return 0;
+    }
+
+    return tokens.reduce((acc, { quantity }) => {
+      return acc + quantity;
+    }, 0);
+  };
+
   const value = {
     ethPrice: prices[WETH],
-    dailyVolume: usdVolume(currentVolume) - usdVolume(dailyStartVolume),
-    weeklyVolume: usdVolume(currentVolume) - usdVolume(weeklyStartVolume),
-    monthlyVolume: usdVolume(currentVolume) - usdVolume(monthlyStartVolume),
+    dailyVolume: usdVolume(currentTokens) - usdVolume(dailyStartTokens),
+    weeklyVolume: usdVolume(currentTokens) - usdVolume(weeklyStartTokens),
+    monthlyVolume: usdVolume(currentTokens) - usdVolume(monthlyStartTokens),
     previousDailyVolume:
-      usdVolume(dailyStartVolume) - usdVolume(previousDailyStartVolume),
+      usdVolume(dailyStartTokens) - usdVolume(previousDailyStartTokens),
     previousWeeklyVolume:
-      usdVolume(weeklyStartVolume) - usdVolume(previousWeeklyStartVolume),
+      usdVolume(weeklyStartTokens) - usdVolume(previousWeeklyStartTokens),
     previousMonthlyVolume:
-      usdVolume(monthlyStartVolume) - usdVolume(previousMonthlyStartVolume),
+      usdVolume(monthlyStartTokens) - usdVolume(previousMonthlyStartTokens),
+    dailyQuantity:
+      totalQuantity(currentTokens) - totalQuantity(dailyStartTokens),
+    weeklyQuantity:
+      totalQuantity(currentTokens) - totalQuantity(weeklyStartTokens),
+    monthlyQuantity:
+      totalQuantity(currentTokens) - totalQuantity(monthlyStartTokens),
+    previousDailyQuantity:
+      totalQuantity(dailyStartTokens) - totalQuantity(previousDailyStartTokens),
+    previousWeeklyQuantity:
+      totalQuantity(weeklyStartTokens) -
+      totalQuantity(previousWeeklyStartTokens),
+    previousMonthlyQuantity:
+      totalQuantity(monthlyStartTokens) -
+      totalQuantity(previousMonthlyStartTokens),
   };
 
   return (
