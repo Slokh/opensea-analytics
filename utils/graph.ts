@@ -6,8 +6,7 @@ type Asset = {
   volume: BigNumber;
 };
 
-const GRAPHQL_ENDPONT =
-  "https://api.studio.thegraph.com/query/6515/opensea/v0.4.0";
+const GRAPHQL_ENDPONT = "https://api.thegraph.com/subgraphs/name/slokh/opensea";
 
 export const getVolumeAtBlock = async (block?: number) => {
   const response = await fetch(GRAPHQL_ENDPONT, {
