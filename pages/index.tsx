@@ -4,6 +4,7 @@ import {
   Image,
   Link,
   SimpleGrid,
+  Skeleton,
   Spacer,
   Stack,
   Text,
@@ -22,42 +23,46 @@ const DisplayItem = ({
   value,
   valueFormatter,
   description,
+  isLoading,
 }: {
   label: string;
   value: number;
   valueFormatter: (n: number) => string;
   description?: string;
+  isLoading: boolean;
 }) => (
   <Flex w="xs" p={4} direction="column">
-    <Text
-      fontWeight="medium"
-      fontSize="xs"
-      textTransform="uppercase"
-      color="#C0C3C6"
-    >
-      {label}
-    </Text>
-    <Text fontSize="3xl" fontWeight="bold">
-      <AnimatedNumber
-        component="text"
-        // @ts-ignore
-        value={value}
-        style={{
-          transition: "0.8s ease-out",
-          transitionProperty: "background-color, color, opacity",
-        }}
-        duration={2000}
-        formatValue={valueFormatter}
-      />
-    </Text>
-    <Text
-      fontSize="sm"
-      fontWeight="semibold"
-      textTransform="uppercase"
-      color="#C0C3C6"
-    >
-      {description}
-    </Text>
+    <Skeleton isLoaded={!isLoading}>
+      <Text
+        fontWeight="medium"
+        fontSize="xs"
+        textTransform="uppercase"
+        color="#C0C3C6"
+      >
+        {label}
+      </Text>
+      <Text fontSize="3xl" fontWeight="bold">
+        <AnimatedNumber
+          component="text"
+          // @ts-ignore
+          value={value}
+          style={{
+            transition: "0.8s ease-out",
+            transitionProperty: "background-color, color, opacity",
+          }}
+          duration={2000}
+          formatValue={valueFormatter}
+        />
+      </Text>
+      <Text
+        fontSize="sm"
+        fontWeight="semibold"
+        textTransform="uppercase"
+        color="#C0C3C6"
+      >
+        {description}
+      </Text>
+    </Skeleton>
   </Flex>
 );
 
@@ -84,7 +89,7 @@ const DisplayGroup = ({
 );
 
 const VolumeItem = ({ label, value }: { label: string; value: number }) => {
-  const { ethPrice } = useOpenSea();
+  const { ethPrice, isLoading } = useOpenSea();
 
   return (
     <DisplayItem
@@ -94,23 +99,26 @@ const VolumeItem = ({ label, value }: { label: string; value: number }) => {
       description={`${commify(
         (value && ethPrice ? value / ethPrice : 0).toFixed(2)
       )} ETH`}
+      isLoading={isLoading}
     />
   );
 };
 
 const QuantityItem = ({ label, value }: { label: string; value: number }) => {
+  const { isLoading } = useOpenSea();
   return (
     <DisplayItem
       label={label}
       value={value}
       valueFormatter={(value: number) => commify(value.toFixed(0))}
       description="NFTs sold"
+      isLoading={isLoading}
     />
   );
 };
 
 const DailyVolume = () => {
-  const { dailyVolume, previousDailyVolume } = useOpenSea();
+  const { isLoading, dailyVolume, previousDailyVolume } = useOpenSea();
 
   return (
     <DisplayGroup title="Daily Volume">

@@ -1,3 +1,5 @@
+import { NULL_ADDRESS, WETH } from "./constants";
+
 export type Token = {
   id: string;
   volume: number;
@@ -15,7 +17,9 @@ export const getVolumeAtBlock = async (block?: number): Promise<Token[]> => {
     },
     body: JSON.stringify({
       query: `{
-        tokens(first: 1000 ${block ? `, block: { number: ${block} } ` : ""}) {
+        tokens(first: 1000, where: {id_in: ["${NULL_ADDRESS}", "${WETH}"]} ${
+        block ? `, block: { number: ${block} } ` : ""
+      }) {
           id
           volume
           quantity
@@ -23,6 +27,11 @@ export const getVolumeAtBlock = async (block?: number): Promise<Token[]> => {
       }`,
     }),
   });
+
+  if (response.status !== 200) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return getVolumeAtBlock(block);
+  }
 
   const { data } = await response.json();
 

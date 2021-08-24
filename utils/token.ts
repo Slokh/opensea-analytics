@@ -1,4 +1,4 @@
-export const blockNumberForTimestamp = async (timestamp: number) => {
+export const getBlockNumberForTimestamp = async (timestamp: number) => {
   const data = await fetch(
     `https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=after&apikey=${process.env.NEXT_PUBLIC_ETHERSCAN_API}`
   );
@@ -6,23 +6,24 @@ export const blockNumberForTimestamp = async (timestamp: number) => {
   return parseInt(result, 10);
 };
 
-export const tokenPrices = async (
-  tokens: string[]
-): Promise<{ [key: string]: number }> => {
-  const BATCH_SIZE = 50;
-  let prices: { [key: string]: number } = {};
-  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
-    const data = await fetch(
-      `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=${tokens
-        .slice(i, i + BATCH_SIZE)
-        .join(",")}&vs_currencies=usd`
-    );
+export const getHistoricalTokenPrice = async (
+  token: string
+): Promise<{ [key: number]: number }> => {
+  const tokenData = await fetch(
+    `https://api.coingecko.com/api/v3/coins/ethereum/contract/${token}`
+  );
 
-    const json = await data.json();
-    Object.keys(json).forEach((key) => {
-      prices[key] = parseFloat(json[key].usd);
-    });
-  }
+  const { id } = await tokenData.json();
+  const tokenPrices = await fetch(
+    `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=90&interval=daily`
+  );
+  const { prices } = await tokenPrices.json();
 
-  return prices;
+  return prices.reduce(
+    (acc: { [key: number]: number }, [timestamp, price]: [number, number]) => {
+      acc[timestamp / 1000] = price;
+      return acc;
+    },
+    {}
+  );
 };
