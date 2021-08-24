@@ -9,7 +9,7 @@ import {
 } from "date-fns";
 import startOfDay from "date-fns/startOfDay";
 import { createContext, useContext, useEffect, useState } from "react";
-import { getHistoricalETHPrices } from "../utils";
+import { getHistoricalETHPrices, toUTC } from "../utils";
 
 const ANALYTICS_ENDPOINT =
   "https://pw1494iz47.execute-api.us-east-1.amazonaws.com/dev/analytics";
@@ -43,9 +43,6 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const [currentVolume, setCurrentVolume] = useState<number>(0);
   const [currentQuantity, setCurrentQuantity] = useState<number>(0);
   const [analytics, setAnalytics] = useState<any>([]);
-
-  const toUTC = (date: Date) =>
-    date.getTime() / 1000 - date.getTimezoneOffset() * 60;
 
   const now = new Date();
   const today = toUTC(startOfDay(now));

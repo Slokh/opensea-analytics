@@ -4,16 +4,38 @@ import {
   Image,
   Link,
   SimpleGrid,
-  Skeleton,
   Spacer,
   Stack,
   Text,
 } from "@chakra-ui/react";
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import type { NextPage } from "next";
 import React, { useEffect, useState } from "react";
 //@ts-ignore
 import AnimatedNumber from "react-animated-number";
 import { useOpenSea } from "../context/opensea";
+import { fromUTC } from "../utils";
+
+const now = new Date();
+
+const percentageOfDay =
+  (fromUTC(now) * 1000 - startOfDay(now).getTime()) /
+  (endOfDay(now).getTime() - startOfDay(now).getTime());
+
+const percentageOfWeek =
+  (fromUTC(now) * 1000 - startOfWeek(now).getTime()) /
+  (endOfWeek(now).getTime() - startOfWeek(now).getTime());
+
+const percentageOfMonth =
+  (fromUTC(now) * 1000 - startOfMonth(now).getTime()) /
+  (endOfMonth(now).getTime() - startOfMonth(now).getTime());
 
 const commify = (n: number | string) =>
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -27,7 +49,7 @@ const DisplayItem = ({
   label: string;
   value: number;
   valueFormatter: (n: number) => string;
-  description?: string;
+  description?: React.ReactNode;
 }) => {
   const [display, setDisplay] = useState(0);
 
@@ -37,14 +59,14 @@ const DisplayItem = ({
 
   return (
     <Flex w="xs" p={4} direction="column">
-      <Text
+      <Flex
         fontWeight="medium"
         fontSize="xs"
         textTransform="uppercase"
         color="#C0C3C6"
       >
         {label}
-      </Text>
+      </Flex>
       <Text fontSize="3xl" fontWeight="bold">
         <AnimatedNumber
           component="text"
@@ -53,14 +75,9 @@ const DisplayItem = ({
           formatValue={valueFormatter}
         />
       </Text>
-      <Text
-        fontSize="sm"
-        fontWeight="semibold"
-        textTransform="uppercase"
-        color="#C0C3C6"
-      >
+      <Flex fontSize="sm" fontWeight="semibold" color="#C0C3C6">
         {description}
-      </Text>
+      </Flex>
     </Flex>
   );
 };
@@ -87,26 +104,42 @@ const DisplayGroup = ({
   </Flex>
 );
 
-const VolumeItem = ({ label, value }: { label: string; value: number }) => {
+const VolumeItem = ({
+  label,
+  value,
+  projection,
+}: {
+  label: string;
+  value: number;
+  projection?: number;
+}) => {
   const { ethPrice } = useOpenSea();
 
   return (
     <DisplayItem
-      label={label}
+      label={`${label} - ${commify((value / (ethPrice || 1)).toFixed(0))} ETH`}
       value={value}
       valueFormatter={(value: number) => `$${commify(value.toFixed(2))}`}
-      description={`${commify((value / (ethPrice || 1)).toFixed(2))} ETH`}
+      description={projection && `$${commify(projection.toFixed(2))} projected`}
     />
   );
 };
 
-const QuantityItem = ({ label, value }: { label: string; value: number }) => {
+const QuantityItem = ({
+  label,
+  value,
+  projection,
+}: {
+  label: string;
+  value: number;
+  projection?: number;
+}) => {
   return (
     <DisplayItem
       label={label}
       value={value}
       valueFormatter={(value: number) => commify(value.toFixed(0))}
-      description="NFTs sold"
+      description={projection && `${commify(projection.toFixed(0))} projected`}
     />
   );
 };
@@ -116,7 +149,11 @@ const DailyVolume = () => {
 
   return (
     <DisplayGroup title="Daily Volume">
-      <VolumeItem label="Today" value={dailyVolume} />
+      <VolumeItem
+        label="Today"
+        value={dailyVolume}
+        projection={dailyVolume / percentageOfDay}
+      />
       <VolumeItem label="Yesterday" value={previousDailyVolume} />
     </DisplayGroup>
   );
@@ -127,7 +164,11 @@ const WeeklyVolume = () => {
 
   return (
     <DisplayGroup title="Weekly Volume">
-      <VolumeItem label="This Week" value={weeklyVolume} />
+      <VolumeItem
+        label="This Week"
+        value={weeklyVolume}
+        projection={weeklyVolume / percentageOfWeek}
+      />
       <VolumeItem label="Last Week" value={previousWeeklyVolume} />
     </DisplayGroup>
   );
@@ -138,7 +179,11 @@ const MonthlyVolume = () => {
 
   return (
     <DisplayGroup title="Monthly Volume">
-      <VolumeItem label="This Month" value={monthlyVolume} />
+      <VolumeItem
+        label="This Month"
+        value={monthlyVolume}
+        projection={monthlyVolume / percentageOfMonth}
+      />
       <VolumeItem label="Last Month" value={previousMonthlyVolume} />
     </DisplayGroup>
   );
@@ -149,7 +194,11 @@ const DailyQuantity = () => {
 
   return (
     <DisplayGroup title="Daily Quantity">
-      <QuantityItem label="Today" value={dailyQuantity} />
+      <QuantityItem
+        label="Today"
+        value={dailyQuantity}
+        projection={dailyQuantity / percentageOfDay}
+      />
       <QuantityItem label="Yesterday" value={previousDailyQuantity} />
     </DisplayGroup>
   );
@@ -160,7 +209,11 @@ const WeeklyQuantity = () => {
 
   return (
     <DisplayGroup title="Weekly Quantity">
-      <QuantityItem label="This Week" value={weeklyQuantity} />
+      <QuantityItem
+        label="This Week"
+        value={weeklyQuantity}
+        projection={weeklyQuantity / percentageOfWeek}
+      />
       <QuantityItem label="Last Week" value={previousWeeklyQuantity} />
     </DisplayGroup>
   );
@@ -171,7 +224,11 @@ const MonthlyQuantity = () => {
 
   return (
     <DisplayGroup title="Monthly Quantity">
-      <QuantityItem label="This Month" value={monthlyQuantity} />
+      <QuantityItem
+        label="This Month"
+        value={monthlyQuantity}
+        projection={monthlyQuantity / percentageOfMonth}
+      />
       <QuantityItem label="Last Month" value={previousMonthlyQuantity} />
     </DisplayGroup>
   );

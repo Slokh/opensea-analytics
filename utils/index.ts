@@ -14,3 +14,9 @@ export const getHistoricalETHPrices = async (): Promise<{
     {}
   );
 };
+
+export const toUTC = (date: Date) =>
+  date.getTime() / 1000 - date.getTimezoneOffset() * 60;
+
+export const fromUTC = (date: Date) =>
+  date.getTime() / 1000 + date.getTimezoneOffset() * 60;
