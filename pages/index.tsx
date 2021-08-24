@@ -10,7 +10,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
-import React from "react";
+import React, { useEffect, useState } from "react";
 //@ts-ignore
 import AnimatedNumber from "react-animated-number";
 import { useOpenSea } from "../context/opensea";
@@ -23,16 +23,20 @@ const DisplayItem = ({
   value,
   valueFormatter,
   description,
-  isLoading,
 }: {
   label: string;
   value: number;
   valueFormatter: (n: number) => string;
   description?: string;
-  isLoading: boolean;
-}) => (
-  <Flex w="xs" p={4} direction="column">
-    <Skeleton isLoaded={!isLoading}>
+}) => {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    setDisplay(value);
+  }, [value]);
+
+  return (
+    <Flex w="xs" p={4} direction="column">
       <Text
         fontWeight="medium"
         fontSize="xs"
@@ -44,12 +48,7 @@ const DisplayItem = ({
       <Text fontSize="3xl" fontWeight="bold">
         <AnimatedNumber
           component="text"
-          // @ts-ignore
-          value={value}
-          style={{
-            transition: "0.8s ease-out",
-            transitionProperty: "background-color, color, opacity",
-          }}
+          value={display}
           duration={2000}
           formatValue={valueFormatter}
         />
@@ -62,9 +61,9 @@ const DisplayItem = ({
       >
         {description}
       </Text>
-    </Skeleton>
-  </Flex>
-);
+    </Flex>
+  );
+};
 
 const DisplayGroup = ({
   title,
@@ -89,36 +88,31 @@ const DisplayGroup = ({
 );
 
 const VolumeItem = ({ label, value }: { label: string; value: number }) => {
-  const { ethPrice, isLoading } = useOpenSea();
+  const { ethPrice } = useOpenSea();
 
   return (
     <DisplayItem
       label={label}
       value={value}
       valueFormatter={(value: number) => `$${commify(value.toFixed(2))}`}
-      description={`${commify(
-        (value && ethPrice ? value / ethPrice : 0).toFixed(2)
-      )} ETH`}
-      isLoading={isLoading}
+      description={`${commify((value / (ethPrice || 1)).toFixed(2))} ETH`}
     />
   );
 };
 
 const QuantityItem = ({ label, value }: { label: string; value: number }) => {
-  const { isLoading } = useOpenSea();
   return (
     <DisplayItem
       label={label}
       value={value}
       valueFormatter={(value: number) => commify(value.toFixed(0))}
       description="NFTs sold"
-      isLoading={isLoading}
     />
   );
 };
 
 const DailyVolume = () => {
-  const { isLoading, dailyVolume, previousDailyVolume } = useOpenSea();
+  const { dailyVolume, previousDailyVolume } = useOpenSea();
 
   return (
     <DisplayGroup title="Daily Volume">
@@ -218,7 +212,7 @@ const Home: NextPage = () => (
       borderColor="#2D3841"
       borderTopWidth={1}
     >
-      <Text>ETH only (Polygon soon)</Text>
+      <Text>These analytics only include Ethereum.</Text>
       <Stack
         fontSize="sm"
         fontWeight="normal"

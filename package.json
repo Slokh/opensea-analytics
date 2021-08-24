@@ -13,6 +13,7 @@
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11.3.0",
     "@fontsource/poppins": "^4.5.0",
+    "aws-sdk": "^2.974.0",
     "date-fns": "^2.23.0",
     "date-fns-tz": "^1.1.6",
     "ethers": "^5.4.5",
