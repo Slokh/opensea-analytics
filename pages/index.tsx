@@ -21,21 +21,26 @@ import React, { useEffect, useState } from "react";
 //@ts-ignore
 import AnimatedNumber from "react-animated-number";
 import { useOpenSea } from "../context/opensea";
-import { fromUTC } from "../utils";
 
-const now = new Date();
+const now = new Date().getTime() / 1000 + new Date().getTimezoneOffset() * 60;
 
 const percentageOfDay =
-  (fromUTC(now) * 1000 - startOfDay(now).getTime()) /
-  (endOfDay(now).getTime() - startOfDay(now).getTime());
+  (now -
+    startOfDay(now * 1000).getTime() / 1000 -
+    (new Date().getTimezoneOffset() * 60) / 1000) /
+  ((endOfDay(now).getTime() - startOfDay(now).getTime()) / 1000);
 
 const percentageOfWeek =
-  (fromUTC(now) * 1000 - startOfWeek(now).getTime()) /
-  (endOfWeek(now).getTime() - startOfWeek(now).getTime());
+  (now -
+    startOfWeek(now * 1000).getTime() / 1000 -
+    (new Date().getTimezoneOffset() * 60) / 1000) /
+  ((endOfWeek(now).getTime() - startOfWeek(now).getTime()) / 1000);
 
 const percentageOfMonth =
-  (fromUTC(now) * 1000 - startOfMonth(now).getTime()) /
-  (endOfMonth(now).getTime() - startOfMonth(now).getTime());
+  (now -
+    startOfMonth(now * 1000).getTime() / 1000 -
+    (new Date().getTimezoneOffset() * 60) / 1000) /
+  ((endOfMonth(now).getTime() - startOfMonth(now).getTime()) / 1000);
 
 const commify = (n: number | string) =>
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");

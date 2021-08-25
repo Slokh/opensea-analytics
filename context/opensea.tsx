@@ -1,5 +1,6 @@
 import { useInterval } from "@chakra-ui/react";
 import {
+  addDays,
   eachDayOfInterval,
   startOfMonth,
   startOfWeek,
@@ -9,7 +10,7 @@ import {
 } from "date-fns";
 import startOfDay from "date-fns/startOfDay";
 import { createContext, useContext, useEffect, useState } from "react";
-import { getHistoricalETHPrices, toUTC } from "../utils";
+import { getHistoricalETHPrices } from "../utils";
 
 const ANALYTICS_ENDPOINT =
   "https://pw1494iz47.execute-api.us-east-1.amazonaws.com/dev/analytics";
@@ -44,13 +45,25 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const [currentQuantity, setCurrentQuantity] = useState<number>(0);
   const [analytics, setAnalytics] = useState<any>([]);
 
-  const now = new Date();
-  const today = toUTC(startOfDay(now));
-  const yesterday = toUTC(startOfDay(subDays(now, 1)));
-  const thisWeek = toUTC(startOfWeek(now));
-  const lastWeek = toUTC(startOfWeek(subWeeks(thisWeek * 1000, 1)));
-  const thisMonth = toUTC(startOfMonth(now));
-  const lastMonth = toUTC(startOfMonth(subMonths(now, 1)));
+  const now = new Date().getTime() / 1000 + new Date().getTimezoneOffset() * 60;
+  const today =
+    startOfDay(now * 1000).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
+  const yesterday =
+    startOfDay(subDays(now * 1000, 1)).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
+  const thisWeek =
+    startOfWeek(now * 1000).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
+  const lastWeek =
+    startOfWeek(subWeeks(thisWeek * 1000, 1)).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
+  const thisMonth =
+    startOfMonth(now * 1000).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
+  const lastMonth =
+    startOfMonth(subMonths(now * 1000, 1)).getTime() / 1000 -
+    new Date().getTimezoneOffset() * 60;
 
   const getVolumeAtTimestamp = async (timestamp?: number) => {
     return await (
@@ -65,9 +78,9 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
       const timestamps = eachDayOfInterval({
         start: lastMonth * 1000,
-        end: now,
+        end: addDays(today * 1000, 1),
       })
-        .map((t) => toUTC(t))
+        .map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60)
         .slice(1);
 
       const analyticsList: {
@@ -80,9 +93,7 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
         )
       );
 
-      const volumes = [
-        analyticsList[0].volume * price[analyticsList[0].timestamp],
-      ];
+      const volumes = [0];
       for (let i = 1; i < analyticsList.length; i++) {
         volumes.push(
           volumes[i - 1] +
