@@ -45,25 +45,16 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const [currentQuantity, setCurrentQuantity] = useState<number>(0);
   const [analytics, setAnalytics] = useState<any>([]);
 
-  const now = new Date().getTime() / 1000 + new Date().getTimezoneOffset() * 60;
-  const today =
-    startOfDay(now * 1000).getTime() / 1000 -
-    new Date().getTimezoneOffset() * 60;
-  const yesterday =
-    startOfDay(subDays(now * 1000, 1)).getTime() / 1000 -
-    new Date().getTimezoneOffset() * 60;
+  const today = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000;
+  const yesterday = subDays(today * 1000, 1).getTime() / 1000;
   const thisWeek =
-    startOfWeek(now * 1000).getTime() / 1000 -
+    startOfWeek(today * 1000).getTime() / 1000 -
     new Date().getTimezoneOffset() * 60;
-  const lastWeek =
-    startOfWeek(subWeeks(thisWeek * 1000, 1)).getTime() / 1000 -
-    new Date().getTimezoneOffset() * 60;
+  const lastWeek = subWeeks(thisWeek * 1000, 1).getTime() / 1000;
   const thisMonth =
-    startOfMonth(now * 1000).getTime() / 1000 -
+    startOfMonth(today * 1000).getTime() / 1000 -
     new Date().getTimezoneOffset() * 60;
-  const lastMonth =
-    startOfMonth(subMonths(now * 1000, 1)).getTime() / 1000 -
-    new Date().getTimezoneOffset() * 60;
+  const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
 
   const getVolumeAtTimestamp = async (timestamp?: number) => {
     return await (
