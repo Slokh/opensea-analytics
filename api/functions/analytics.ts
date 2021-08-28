@@ -79,7 +79,12 @@ export const handler = async (event) => {
   let volume = 0;
   let quantity = 0;
 
-  if (!data.Item || data.Item.volume === 0 || data.Item.quantity === 0) {
+  if (
+    !data.Item ||
+    data.Item.volume === 0 ||
+    data.Item.quantity === 0 ||
+    event?.queryStringParameters?.force
+  ) {
     console.log(`${timestamp} not in cache`);
     const block = await getBlockNumberForTimestamp(timestamp);
     const tokens = await getVolumeAtBlock(block);

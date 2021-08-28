@@ -8,7 +8,6 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
-import startOfDay from "date-fns/startOfDay";
 import { createContext, useContext, useEffect, useState } from "react";
 import { getHistoricalETHPrices } from "../utils";
 
@@ -58,7 +57,11 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
   const getVolumeAtTimestamp = async (timestamp?: number) => {
     return await (
-      await fetch(`${ANALYTICS_ENDPOINT}?timestamp=${timestamp || ""}`)
+      await fetch(
+        `${ANALYTICS_ENDPOINT}?timestamp=${timestamp || ""}${
+          timestamp === today ? "&force=true" : ""
+        }`
+      )
     ).json();
   };
 
