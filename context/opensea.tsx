@@ -1,4 +1,3 @@
-import { useInterval } from "@chakra-ui/react";
 import {
   addDays,
   eachDayOfInterval,
@@ -8,11 +7,28 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
-import { createContext, useContext, useEffect, useState } from "react";
-import { getHistoricalETHPrices } from "../utils";
+import { createContext, useContext } from "react";
+import { useCurrentData } from "../hooks/useCurrentData";
+import { useEthereumPrices } from "../hooks/useEthereumPrices";
+import { useHistoricalData } from "../hooks/useHistoricalData";
 
-const ANALYTICS_ENDPOINT =
-  "https://pw1494iz47.execute-api.us-east-1.amazonaws.com/dev/analytics";
+const today = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000;
+const yesterday = subDays(today * 1000, 1).getTime() / 1000;
+const thisWeek =
+  startOfWeek((today + new Date().getTimezoneOffset() * 60) * 1000).getTime() /
+    1000 -
+  new Date().getTimezoneOffset() * 60;
+const lastWeek = subWeeks(thisWeek * 1000, 1).getTime() / 1000;
+const thisMonth =
+  startOfMonth((today + new Date().getTimezoneOffset() * 60) * 1000).getTime() /
+    1000 -
+  new Date().getTimezoneOffset() * 60;
+const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
+
+const timestamps = eachDayOfInterval({
+  start: addDays(lastMonth * 1000, 1),
+  end: addDays(today * 1000, 1),
+}).map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60);
 
 type State = {
   ethPrice: number;
@@ -37,147 +53,84 @@ type OpenSeaProviderProps = {
 const OpenSeaContext = createContext<State | undefined>(undefined);
 
 const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
-  const [volumes, setVolumes] = useState<any>({});
-  const [quantities, setQuantities] = useState<any>({});
-  const [ethPrice, setEthPrice] = useState<number>(0);
-  const [currentVolume, setCurrentVolume] = useState<number>(0);
-  const [currentQuantity, setCurrentQuantity] = useState<number>(0);
-  const [analytics, setAnalytics] = useState<any>([]);
+  const { prices } = useEthereumPrices();
+  const { historicalData } = useHistoricalData(timestamps);
+  const { ethereumVolume, ethereumQuantity } = useCurrentData();
 
-  const today = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000;
-  const yesterday = subDays(today * 1000, 1).getTime() / 1000;
-  const thisWeek =
-    startOfWeek(
-      (today + new Date().getTimezoneOffset() * 60) * 1000
-    ).getTime() /
-      1000 -
-    new Date().getTimezoneOffset() * 60;
-  const lastWeek = subWeeks(thisWeek * 1000, 1).getTime() / 1000;
-  const thisMonth =
-    startOfMonth(
-      (today + new Date().getTimezoneOffset() * 60) * 1000
-    ).getTime() /
-      1000 -
-    new Date().getTimezoneOffset() * 60;
-  const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
-
-  const getVolumeAtTimestamp = async (timestamp?: number) => {
-    return await (
-      await fetch(
-        `${ANALYTICS_ENDPOINT}?timestamp=${timestamp || ""}${
-          timestamp === today ? "&force=true" : ""
-        }`
-      )
-    ).json();
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      const price = await getHistoricalETHPrices();
-      setEthPrice(price[today]);
-
-      const timestamps = eachDayOfInterval({
-        start: lastMonth * 1000,
-        end: addDays(today * 1000, 1),
-      })
-        .map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60)
-        .slice(1);
-
-      const analyticsList: {
-        timestamp: number;
-        volume: number;
-        quantity: number;
-      }[] = await Promise.all(
-        timestamps.map(
-          async (timestamp) => await getVolumeAtTimestamp(timestamp)
-        )
+  const ethereumVolumes = historicalData.reduce(
+    (acc: any, { ethereum, timestamp }: any, i: number) => {
+      if (i === 0) return acc;
+      return acc.concat(
+        acc[i - 1] +
+          (ethereum.volume - historicalData[i - 1].ethereum.volume) *
+            prices[timestamp]
       );
+    },
+    [0]
+  );
 
-      const volumes = [0];
-      for (let i = 1; i < analyticsList.length; i++) {
-        volumes.push(
-          volumes[i - 1] +
-            (analyticsList[i].volume - analyticsList[i - 1].volume) *
-              price[analyticsList[i].timestamp]
-        );
-      }
+  const currentEthereumQuantity = ethereumQuantity;
+  const currentEthereumVolume =
+    ethereumVolumes.length > 1
+      ? ethereumVolumes[ethereumVolumes.length - 1] +
+        (ethereumVolume -
+          historicalData[historicalData.length - 1].ethereum.volume) *
+          prices[today]
+      : 0;
 
-      setVolumes(
-        volumes.reduce((acc: { [key: string]: number }, volume, i) => {
-          acc[analyticsList[i].timestamp] = volume;
-          return acc;
-        }, {})
-      );
-      setAnalytics(analyticsList);
+  const ethereumVolumeDifference = (start: number, end?: number) => {
+    if (!historicalData.length) return 0;
+    const startIndex = timestamps.findIndex((timestamp) => timestamp === start);
+    const startVolume = ethereumVolumes[startIndex];
 
-      setQuantities(
-        analyticsList.reduce(
-          (acc: { [key: string]: number }, { timestamp, quantity }) => {
-            acc[timestamp] = quantity;
-            return acc;
-          },
-          {}
-        )
-      );
-
-      const { volume, quantity } = await getVolumeAtTimestamp();
-      setCurrentVolume(
-        volumes[volumes.length - 1] +
-          (volume - analyticsList[analyticsList.length - 1].volume) *
-            price[today]
-      );
-      setCurrentQuantity(quantity);
-    };
-    init();
-  }, []);
-
-  useInterval(async () => {
-    const { volume, quantity } = await getVolumeAtTimestamp();
-    const last = analytics[analytics.length - 1];
-    setCurrentVolume(
-      volumes[last.timestamp] + (volume - last.volume) * ethPrice
-    );
-    setCurrentQuantity(quantity);
-  }, 10000);
-
-  const volumeDifference = (start: number, end: number) => {
-    if (!start || !end) {
-      return 0;
+    if (!end) {
+      return currentEthereumVolume - startVolume;
     }
 
-    const startVolume = volumes[start] ?? currentVolume;
-    const endVolume = volumes[end] ?? currentVolume;
+    const endIndex = timestamps.findIndex((timestamp) => timestamp === end);
+    const endVolume = ethereumVolumes[endIndex];
+
     return endVolume - startVolume;
   };
 
-  const quantityDifference = (start: number, end: number) => {
-    if (!start || !end) {
-      return 0;
+  const ethereumQuantityDifference = (start: number, end?: number) => {
+    if (!historicalData.length) return 0;
+    const startIndex = timestamps.findIndex((timestamp) => timestamp === start);
+    const startQuantity = historicalData[startIndex].ethereum.quantity;
+
+    if (!end) {
+      return currentEthereumQuantity - startQuantity;
     }
 
-    const startQuantity = quantities[start] ?? currentQuantity;
-    const endQuantity = quantities[end] ?? currentQuantity;
+    const endIndex = timestamps.findIndex((timestamp) => timestamp === end);
+    const endQuantity = historicalData[endIndex].ethereum.quantity;
+
     return endQuantity - startQuantity;
   };
 
-  const value = {
-    ethPrice,
-    dailyVolume: volumeDifference(today, currentVolume),
-    weeklyVolume: volumeDifference(thisWeek, currentVolume),
-    monthlyVolume: volumeDifference(thisMonth, currentVolume),
-    previousDailyVolume: volumeDifference(yesterday, today),
-    previousWeeklyVolume: volumeDifference(lastWeek, thisWeek),
-    previousMonthlyVolume: volumeDifference(lastMonth, thisMonth),
-    dailyQuantity: quantityDifference(today, currentQuantity),
-    weeklyQuantity: quantityDifference(thisWeek, currentQuantity),
-    monthlyQuantity: quantityDifference(thisMonth, currentQuantity),
-    previousDailyQuantity: quantityDifference(yesterday, today),
-    previousWeeklyQuantity: quantityDifference(lastWeek, thisWeek),
-    previousMonthlyQuantity: quantityDifference(lastMonth, thisMonth),
-  };
-
   return (
-    <OpenSeaContext.Provider value={value}>{children}</OpenSeaContext.Provider>
+    <OpenSeaContext.Provider
+      value={{
+        ethPrice: prices[today],
+        dailyVolume: ethereumVolumeDifference(today),
+        weeklyVolume: ethereumVolumeDifference(thisWeek),
+        monthlyVolume: ethereumVolumeDifference(thisMonth),
+        previousDailyVolume: ethereumVolumeDifference(yesterday, today),
+        previousWeeklyVolume: ethereumVolumeDifference(lastWeek, thisWeek),
+        previousMonthlyVolume: ethereumVolumeDifference(lastMonth, thisMonth),
+        dailyQuantity: ethereumQuantityDifference(today),
+        weeklyQuantity: ethereumQuantityDifference(thisWeek),
+        monthlyQuantity: ethereumQuantityDifference(thisMonth),
+        previousDailyQuantity: ethereumQuantityDifference(yesterday, today),
+        previousWeeklyQuantity: ethereumQuantityDifference(lastWeek, thisWeek),
+        previousMonthlyQuantity: ethereumQuantityDifference(
+          lastMonth,
+          thisMonth
+        ),
+      }}
+    >
+      {children}
+    </OpenSeaContext.Provider>
   );
 };
 

@@ -1,5 +1,5 @@
-type Token @entity {
+type TokenAggregate @entity {
   id: ID!
   volume: BigInt!
-  quantity: Int!
+  transactions: Int!
 }

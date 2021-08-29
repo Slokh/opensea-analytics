@@ -12,7 +12,7 @@ import {
   BigDecimal
 } from "@graphprotocol/graph-ts";
 
-export class Token extends Entity {
+export class TokenAggregate extends Entity {
   constructor(id: string) {
     super();
     this.set("id", Value.fromString(id));
@@ -20,17 +20,17 @@ export class Token extends Entity {
 
   save(): void {
     let id = this.get("id");
-    assert(id !== null, "Cannot save Token entity without an ID");
+    assert(id !== null, "Cannot save TokenAggregate entity without an ID");
     assert(
       id.kind == ValueKind.STRING,
-      "Cannot save Token entity with non-string ID. " +
+      "Cannot save TokenAggregate entity with non-string ID. " +
         'Considering using .toHex() to convert the "id" to a string.'
     );
-    store.set("Token", id.toString(), this);
+    store.set("TokenAggregate", id.toString(), this);
   }
 
-  static load(id: string): Token | null {
-    return store.get("Token", id) as Token | null;
+  static load(id: string): TokenAggregate | null {
+    return store.get("TokenAggregate", id) as TokenAggregate | null;
   }
 
   get id(): string {
@@ -51,12 +51,12 @@ export class Token extends Entity {
     this.set("volume", Value.fromBigInt(value));
   }
 
-  get quantity(): i32 {
-    let value = this.get("quantity");
+  get transactions(): i32 {
+    let value = this.get("transactions");
     return value.toI32();
   }
 
-  set quantity(value: i32) {
-    this.set("quantity", Value.fromI32(value));
+  set transactions(value: i32) {
+    this.set("transactions", Value.fromI32(value));
   }
 }

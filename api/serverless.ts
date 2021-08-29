@@ -1,7 +1,7 @@
 import type { AWS } from "@serverless/typescript";
 
 const serverlessConfiguration: AWS = {
-  service: "opensea-analytics",
+  service: "opensea-analytics-test",
   frameworkVersion: "2",
   custom: {
     webpack: {
@@ -20,6 +20,8 @@ const serverlessConfiguration: AWS = {
     },
     environment: {
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1",
+      ETHERSCAN_API_KEY: "CIY7WI1KVXEZEFU666865NST2VGFJCQBGY",
+      POLYGONSCAN_API_KEY: "W7HFXH62BZBGB45SJE7J9211EUWGZU7DCF",
     },
     lambdaHashingVersion: "20201221",
   },

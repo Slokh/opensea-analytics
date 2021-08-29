@@ -1,5 +1,5 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
-import { Token } from "../generated/schema";
+import { TokenAggregate } from "../generated/schema";
 import { AtomicMatch_Call } from "../generated/WyvernExchange/WyvernExchange";
 
 export function handleAtomicMatch_(call: AtomicMatch_Call): void {
@@ -7,17 +7,16 @@ export function handleAtomicMatch_(call: AtomicMatch_Call): void {
   let addrs: Address[] = callInputs.addrs;
   let uints: BigInt[] = callInputs.uints;
 
-  let price: BigInt = uints[4];
   let paymentToken = addrs[6].toHexString();
 
-  let token = Token.load(paymentToken);
+  let token = TokenAggregate.load(paymentToken);
   if (token == null) {
-    token = new Token(paymentToken);
+    token = new TokenAggregate(paymentToken);
     token.volume = BigInt.fromI32(0);
-    token.quantity = 0;
+    token.transactions = 0;
   }
 
-  token.volume = token.volume.plus(price);
-  token.quantity = token.quantity + 1;
+  token.volume = token.volume.plus(uints[4]);
+  token.transactions = token.transactions + 1;
   token.save();
 }
