@@ -47,11 +47,17 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const today = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000;
   const yesterday = subDays(today * 1000, 1).getTime() / 1000;
   const thisWeek =
-    startOfWeek(today * 1000).getTime() / 1000 -
+    startOfWeek(
+      (today + new Date().getTimezoneOffset() * 60) * 1000
+    ).getTime() /
+      1000 -
     new Date().getTimezoneOffset() * 60;
   const lastWeek = subWeeks(thisWeek * 1000, 1).getTime() / 1000;
   const thisMonth =
-    startOfMonth(today * 1000).getTime() / 1000 -
+    startOfMonth(
+      (today + new Date().getTimezoneOffset() * 60) * 1000
+    ).getTime() /
+      1000 -
     new Date().getTimezoneOffset() * 60;
   const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
 
