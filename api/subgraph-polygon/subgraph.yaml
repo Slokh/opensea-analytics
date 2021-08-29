@@ -1,0 +1,24 @@
+specVersion: 0.0.2
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: ZeroExExchange
+    network: matic
+    source:
+      address: "0xf715beb51ec8f63317d66f491e37e7bb048fcc2d"
+      abi: ZeroExExchange
+      startBlock: 16262520
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.4
+      language: wasm/assemblyscript
+      entities:
+        - OpenSeaSale
+      abis:
+        - name: ZeroExExchange
+          file: ./abis/ZeroExExchange.json
+      eventHandlers:
+        - event: Fill(indexed address,indexed address,bytes,bytes,bytes,bytes,indexed bytes32,address,address,uint256,uint256,uint256,uint256,uint256)
+          handler: handleFill
+      file: ./src/mapping.ts
