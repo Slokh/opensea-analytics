@@ -1,7 +1,7 @@
 import type { AWS } from "@serverless/typescript";
 
 const serverlessConfiguration: AWS = {
-  service: "opensea-analytics-test",
+  service: "opensea-analytics",
   frameworkVersion: "2",
   custom: {
     webpack: {

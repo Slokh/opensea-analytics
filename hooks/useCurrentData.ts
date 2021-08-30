@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useInterval from "./useInterval";
 
 const ANALYTICS_API =
-  "https://vt8v9g7f6h.execute-api.us-east-1.amazonaws.com/dev/analytics";
+  "https://pw1494iz47.execute-api.us-east-1.amazonaws.com/dev/analytics?current=true";
 
 export const useCurrentData = () => {
   const [data, setData] = useState<any>();

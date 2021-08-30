@@ -10,6 +10,7 @@
     "node": ">=14.15.0"
   },
   "dependencies": {
+    "date-fns": "^2.23.0",
     "ethers": "^5.4.5",
     "node-fetch": "^2.6.1",
     "source-map-support": "^0.5.19"

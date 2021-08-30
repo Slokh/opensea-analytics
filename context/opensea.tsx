@@ -25,11 +25,6 @@ const thisMonth =
   new Date().getTimezoneOffset() * 60;
 const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
 
-const timestamps = eachDayOfInterval({
-  start: addDays(lastMonth * 1000, 1),
-  end: addDays(today * 1000, 1),
-}).map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60);
-
 type State = {
   ethPrice: number;
   dailyVolume: number;
@@ -54,25 +49,27 @@ const OpenSeaContext = createContext<State | undefined>(undefined);
 
 const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
   const { prices } = useEthereumPrices();
-  const { historicalData } = useHistoricalData(timestamps);
+  const { historicalData } = useHistoricalData();
   const { ethereumVolume, ethereumQuantity } = useCurrentData();
 
   const ethereumVolumes = historicalData.reduce(
     (acc: any, { ethereum, timestamp }: any, i: number) => {
       if (i === 0) return acc;
-      return acc.concat(
-        acc[i - 1] +
+      return acc.concat({
+        timestamp,
+        volume:
+          acc[i - 1].volume +
           (ethereum.volume - historicalData[i - 1].ethereum.volume) *
-            prices[timestamp]
-      );
+            prices[timestamp],
+      });
     },
-    [0]
+    [{ timestamp: historicalData[0]?.timestamp, volume: 0 }]
   );
 
   const currentEthereumQuantity = ethereumQuantity;
   const currentEthereumVolume =
     ethereumVolumes.length > 1
-      ? ethereumVolumes[ethereumVolumes.length - 1] +
+      ? ethereumVolumes[ethereumVolumes.length - 1].volume +
         (ethereumVolume -
           historicalData[historicalData.length - 1].ethereum.volume) *
           prices[today]
@@ -80,30 +77,38 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
   const ethereumVolumeDifference = (start: number, end?: number) => {
     if (!historicalData.length) return 0;
-    const startIndex = timestamps.findIndex((timestamp) => timestamp === start);
-    const startVolume = ethereumVolumes[startIndex];
+    const startVolume = ethereumVolumes.find(
+      ({ timestamp }: any) => timestamp === start
+    ).volume;
 
     if (!end) {
-      return currentEthereumVolume - startVolume;
+      return currentEthereumVolume > 0
+        ? currentEthereumVolume - startVolume
+        : 0;
     }
 
-    const endIndex = timestamps.findIndex((timestamp) => timestamp === end);
-    const endVolume = ethereumVolumes[endIndex];
+    const endVolume = ethereumVolumes.find(
+      ({ timestamp }: any) => timestamp === end
+    ).volume;
 
     return endVolume - startVolume;
   };
 
   const ethereumQuantityDifference = (start: number, end?: number) => {
     if (!historicalData.length) return 0;
-    const startIndex = timestamps.findIndex((timestamp) => timestamp === start);
-    const startQuantity = historicalData[startIndex].ethereum.quantity;
+    const startQuantity = historicalData.find(
+      ({ timestamp }: any) => timestamp === start
+    ).ethereum.quantity;
 
     if (!end) {
-      return currentEthereumQuantity - startQuantity;
+      return currentEthereumQuantity > 0
+        ? currentEthereumQuantity - startQuantity
+        : 0;
     }
 
-    const endIndex = timestamps.findIndex((timestamp) => timestamp === end);
-    const endQuantity = historicalData[endIndex].ethereum.quantity;
+    const endQuantity = historicalData.find(
+      ({ timestamp }: any) => timestamp === end
+    ).ethereum.quantity;
 
     return endQuantity - startQuantity;
   };

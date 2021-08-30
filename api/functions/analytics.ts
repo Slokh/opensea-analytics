@@ -2,12 +2,13 @@ import "source-map-support";
 import { DynamoDB } from "aws-sdk";
 import * as fetch from "node-fetch";
 import { formatEther } from "ethers/lib/utils";
+import { addDays, eachDayOfInterval, startOfMonth, subMonths } from "date-fns";
 
 const dynamo = new DynamoDB.DocumentClient();
 
 enum Network {
-  Ethereum,
-  Polygon,
+  Ethereum = "ethereum",
+  Polygon = "polygon",
 }
 
 const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -27,41 +28,35 @@ const getBlockNumberForTimestamp = async (
   timestamp: number
 ) => {
   const data = await fetch(
-    `${
-      network === Network.Ethereum ? ETHERSCAN_API : POLYGONSCAN_API
-    }/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=after&apikey=${
-      process.env.ETHERSCAN_API_KEY
-    }`
+    `${ETHERSCAN_API}/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=after&apikey=${process.env.ETHERSCAN_API_KEY}`
   );
+  console.log(data);
   const { result } = await data.json();
   return parseInt(result, 10);
 };
 
 const getVolumeAtBlock = async (network: Network, block?: number) => {
-  const response = await fetch(
-    network === Network.Ethereum ? ETHEREUM_GRAPH_API : POLYGON_GRAPH_API,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: `{
-        tokens(first: 1000, where: {id_in: ["${NULL_ADDRESS}", "${
-          network === Network.Ethereum ? WETH : POLYGON_WETH
-        }"]} ${block ? `, block: { number: ${block} } ` : ""}) {
+  const response = await fetch(ETHEREUM_GRAPH_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: `{
+        tokens(first: 1000, where: {id_in: ["${NULL_ADDRESS}", "${WETH}"]} ${
+        block ? `, block: { number: ${block} } ` : ""
+      }) {
           id
           volume
           quantity
         }
       }`,
-      }),
-    }
-  );
+    }),
+  });
 
   if (response.status !== 200) {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    return getVolumeAtBlock(block);
+    return getVolumeAtBlock(network, block);
   }
 
   const { data } = await response.json();
@@ -69,7 +64,7 @@ const getVolumeAtBlock = async (network: Network, block?: number) => {
   return data?.tokens || [];
 };
 
-const getDataForTimestamp = async (timestamp: number, force?: boolean) => {
+const getDataForTimestamp = async (timestamp: number) => {
   const data = await dynamo
     .get({
       TableName: "opensea",
@@ -89,8 +84,7 @@ const getDataForTimestamp = async (timestamp: number, force?: boolean) => {
     data.Item.volume === 0 ||
     data.Item.quantity === 0 ||
     data.Item.polygonVolume === 0 ||
-    data.Item.polygonQuantity === 0 ||
-    force
+    data.Item.polygonQuantity === 0
   ) {
     const block = await getBlockNumberForTimestamp(Network.Ethereum, timestamp);
     const tokens = await getVolumeAtBlock(Network.Ethereum, block);
@@ -144,7 +138,7 @@ const getDataForTimestamp = async (timestamp: number, force?: boolean) => {
 };
 
 export const handler = async (event) => {
-  if (!event?.queryStringParameters?.timestamps) {
+  if (event?.queryStringParameters?.current) {
     const tokens = await getVolumeAtBlock(Network.Ethereum);
     const polygonTokens = await getVolumeAtBlock(Network.Polygon);
     return {
@@ -175,14 +169,14 @@ export const handler = async (event) => {
     };
   }
 
-  const timestamps = event?.queryStringParameters?.timestamps.split(",");
+  const today = new Date();
+  const timestamps = eachDayOfInterval({
+    start: subMonths(startOfMonth(today), 1),
+    end: today,
+  }).map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60);
+
   const data = await Promise.all(
-    timestamps.map((timestamp) =>
-      getDataForTimestamp(
-        parseInt(timestamp, 10),
-        timestamp === event?.queryStringParameters.force
-      )
-    )
+    timestamps.map((timestamp) => getDataForTimestamp(timestamp))
   );
 
   return {
