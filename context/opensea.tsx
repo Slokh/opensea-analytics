@@ -113,6 +113,8 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
     return endQuantity - startQuantity;
   };
 
+  console.log(new Date(today * 1000));
+
   return (
     <OpenSeaContext.Provider
       value={{
