@@ -20,23 +20,23 @@ import type { NextPage } from "next";
 import React, { useEffect, useState } from "react";
 //@ts-ignore
 import AnimatedNumber from "react-animated-number";
-import { useOpenSea } from "../context/opensea";
+import { Network, useOpenSea } from "../context/opensea";
 
 const now = new Date().getTime() / 1000 + new Date().getTimezoneOffset() * 60;
 
-const percentageOfDay =
+const percentageOfDay = () =>
   (now -
     startOfDay(now * 1000).getTime() / 1000 -
     (new Date().getTimezoneOffset() * 60) / 1000) /
   ((endOfDay(now).getTime() - startOfDay(now).getTime()) / 1000);
 
-const percentageOfWeek =
+const percentageOfWeek = () =>
   (now -
     startOfWeek(now * 1000).getTime() / 1000 -
     (new Date().getTimezoneOffset() * 60) / 1000) /
   ((endOfWeek(now).getTime() - startOfWeek(now).getTime()) / 1000);
 
-const percentageOfMonth =
+const percentageOfMonth = () =>
   (now -
     startOfMonth(now * 1000).getTime() / 1000 -
     (new Date().getTimezoneOffset() * 60) / 1000) /
@@ -63,7 +63,7 @@ const DisplayItem = ({
   }, [value]);
 
   return (
-    <Flex w="xs" p={4} direction="column">
+    <Flex w={{ base: "full", md: "xs" }} p={4} direction="column">
       <Flex
         fontWeight="medium"
         fontSize="xs"
@@ -96,9 +96,10 @@ const DisplayGroup = ({
 }) => (
   <Flex
     p={4}
+    w="full"
     direction="column"
     borderColor="#2D3841"
-    borderRightWidth={1}
+    borderRightWidth={{ base: 0, md: 1 }}
     borderBottomWidth={1}
     _even={{ borderRightWidth: 0 }}
   >
@@ -118,11 +119,13 @@ const VolumeItem = ({
   value: number;
   projection?: number;
 }) => {
-  const { ethPrice } = useOpenSea();
+  const { latestPrice } = useOpenSea();
 
   return (
     <DisplayItem
-      label={`${label} - ${commify((value / (ethPrice || 1)).toFixed(0))} ETH`}
+      label={`${label} - ${commify(
+        (value / (latestPrice || 1)).toFixed(0)
+      )} ETH`}
       value={value}
       valueFormatter={(value: number) => `$${commify(value.toFixed(2))}`}
       description={projection && `$${commify(projection.toFixed(2))} projected`}
@@ -151,14 +154,15 @@ const QuantityItem = ({
 
 const DailyVolume = () => {
   const { dailyVolume, previousDailyVolume } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(dailyVolume / percentageOfDay());
+  }, [dailyVolume]);
 
   return (
     <DisplayGroup title="Daily Volume">
-      <VolumeItem
-        label="Today"
-        value={dailyVolume}
-        projection={dailyVolume / percentageOfDay}
-      />
+      <VolumeItem label="Today" value={dailyVolume} projection={projection} />
       <VolumeItem label="Yesterday" value={previousDailyVolume} />
     </DisplayGroup>
   );
@@ -166,13 +170,18 @@ const DailyVolume = () => {
 
 const WeeklyVolume = () => {
   const { weeklyVolume, previousWeeklyVolume } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(weeklyVolume / percentageOfWeek());
+  }, [weeklyVolume]);
 
   return (
     <DisplayGroup title="Weekly Volume">
       <VolumeItem
         label="This Week"
         value={weeklyVolume}
-        projection={weeklyVolume / percentageOfWeek}
+        projection={projection}
       />
       <VolumeItem label="Last Week" value={previousWeeklyVolume} />
     </DisplayGroup>
@@ -181,13 +190,18 @@ const WeeklyVolume = () => {
 
 const MonthlyVolume = () => {
   const { monthlyVolume, previousMonthlyVolume } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(monthlyVolume / percentageOfMonth());
+  }, [monthlyVolume]);
 
   return (
     <DisplayGroup title="Monthly Volume">
       <VolumeItem
         label="This Month"
         value={monthlyVolume}
-        projection={monthlyVolume / percentageOfMonth}
+        projection={projection}
       />
       <VolumeItem label="Last Month" value={previousMonthlyVolume} />
     </DisplayGroup>
@@ -196,13 +210,18 @@ const MonthlyVolume = () => {
 
 const DailyQuantity = () => {
   const { dailyQuantity, previousDailyQuantity } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(dailyQuantity / percentageOfDay());
+  }, [dailyQuantity]);
 
   return (
     <DisplayGroup title="Daily Quantity">
       <QuantityItem
         label="Today"
         value={dailyQuantity}
-        projection={dailyQuantity / percentageOfDay}
+        projection={projection}
       />
       <QuantityItem label="Yesterday" value={previousDailyQuantity} />
     </DisplayGroup>
@@ -211,13 +230,18 @@ const DailyQuantity = () => {
 
 const WeeklyQuantity = () => {
   const { weeklyQuantity, previousWeeklyQuantity } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(weeklyQuantity / percentageOfWeek());
+  }, [weeklyQuantity]);
 
   return (
     <DisplayGroup title="Weekly Quantity">
       <QuantityItem
         label="This Week"
         value={weeklyQuantity}
-        projection={weeklyQuantity / percentageOfWeek}
+        projection={projection}
       />
       <QuantityItem label="Last Week" value={previousWeeklyQuantity} />
     </DisplayGroup>
@@ -226,33 +250,59 @@ const WeeklyQuantity = () => {
 
 const MonthlyQuantity = () => {
   const { monthlyQuantity, previousMonthlyQuantity } = useOpenSea();
+  const [projection, setProjection] = useState(0);
+
+  useEffect(() => {
+    setProjection(monthlyQuantity / percentageOfMonth());
+  }, [monthlyQuantity]);
 
   return (
     <DisplayGroup title="Monthly Quantity">
       <QuantityItem
         label="This Month"
         value={monthlyQuantity}
-        projection={monthlyQuantity / percentageOfMonth}
+        projection={projection}
       />
       <QuantityItem label="Last Month" value={previousMonthlyQuantity} />
     </DisplayGroup>
   );
 };
 
-const Home: NextPage = () => (
-  <Stack minH="100vh" w="full" spacing={0}>
+const Nav = () => {
+  const { network, setNetwork } = useOpenSea();
+
+  return (
     <Stack
-      direction="row"
+      direction={{ base: "column", sm: "row" }}
       borderColor="#2D3841"
       borderBottomWidth={1}
       align="center"
-      p={6}
+      p={3}
+      justify="space-between"
     >
-      <Image h={8} w={8} src="opensea.svg" />
-      <Text fontSize="xl" fontWeight="bold">
-        OpenSea Analytics
-      </Text>
+      <Stack direction="row" align="center" p={3}>
+        <Image h={8} w={8} src="opensea.svg" />
+        <Text fontSize="xl" fontWeight="bold">
+          OpenSea Analytics
+        </Text>
+      </Stack>
+      <Stack direction="row" align="center" p={3} spacing={6}>
+        {[Network.Ethereum, Network.Polygon].map((n) => (
+          <Text
+            cursor="pointer"
+            color={network === n ? "white" : "#C0C3C6"}
+            fontWeight={network === n ? "bold" : "regular"}
+            onClick={() => setNetwork(n)}
+          >{`${n.substr(0, 1).toUpperCase()}${n.substr(1)}`}</Text>
+        ))}
+      </Stack>
     </Stack>
+  );
+};
+
+const Home: NextPage = () => (
+  <Stack minH="100vh" w="full" spacing={0}>
+    <Nav />
     <SimpleGrid columns={{ base: 1, md: 2 }}>
       <DailyVolume />
       <DailyQuantity />
@@ -270,11 +320,10 @@ const Home: NextPage = () => (
       direction="row"
       align="center"
       spacing={1}
-      justify="space-between"
+      justify="flex-end"
       borderColor="#2D3841"
       borderTopWidth={1}
     >
-      <Text>These analytics only include Ethereum.</Text>
       <Stack
         fontSize="sm"
         fontWeight="normal"
@@ -286,7 +335,7 @@ const Home: NextPage = () => (
         <Flex align="center" fontWeight="semibold">
           <Image w={4} h={4} mr={0.5} src="twitter.svg" />
           <Link href="https://twitter.com/Slokh" _hover={{ color: "#C0C3C6" }}>
-            Slokh
+            Kartik
           </Link>
         </Flex>
       </Stack>

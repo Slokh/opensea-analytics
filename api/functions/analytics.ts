@@ -1,5 +1,5 @@
 import { DynamoDB } from "aws-sdk";
-import { eachDayOfInterval, startOfMonth, subMonths } from "date-fns";
+import { eachDayOfInterval, startOfMonth, subDays } from "date-fns";
 import { formatEther } from "ethers/lib/utils";
 import * as fetch from "node-fetch";
 import "source-map-support";
@@ -36,8 +36,8 @@ const getBlockNumberForTimestamp = async (
         : process.env.POLYGONSCAN_API_KEY
     }`
   );
-  const { result } = await data.json();
-  return parseInt(result, 10);
+  const d = await data.json();
+  return parseInt(d.result, 10);
 };
 
 const getVolumeAtBlock = async (network: Network, block?: number) => {
@@ -50,9 +50,11 @@ const getVolumeAtBlock = async (network: Network, block?: number) => {
       },
       body: JSON.stringify({
         query: `{
-        tokenAggregates(first: 1000, where: {id_in: ["${NULL_ADDRESS}", "${WETH}"]}, ${
-          block ? `, block: { number: ${block} } ` : ""
-        }) {
+        tokenAggregates(first: 1000, ${
+          network == Network.Ethereum
+            ? `where: {id_in: ["${NULL_ADDRESS}", "${WETH}"]},`
+            : ""
+        } ${block ? `, block: { number: ${block} } ` : ""}) {
           id
           volume
           transactions
@@ -82,15 +84,46 @@ const getDataForTimestamp = async (timestamp: number) => {
     })
     .promise();
 
-  let volume = 0;
-  let quantity = 0;
+  let ethereum = {
+    volume: 0,
+    quantity: 0,
+  };
 
-  if (!data.Item || data.Item.volume === 0 || data.Item.quantity === 0) {
+  let polygon = {
+    volume: 0,
+    quantity: 0,
+  };
+
+  if (
+    !data.Item ||
+    !data.Item.volume ||
+    !data.Item.quantity ||
+    !data.Item.polygonVolume ||
+    !data.Item.polygonQuantity
+  ) {
     const block = await getBlockNumberForTimestamp(Network.Ethereum, timestamp);
     const tokens = await getVolumeAtBlock(Network.Ethereum, block);
 
-    quantity = tokens.reduce((acc, { transactions }) => acc + transactions, 0);
-    volume = tokens.reduce(
+    ethereum.quantity = tokens.reduce(
+      (acc, { transactions }) => acc + transactions,
+      0
+    );
+    ethereum.volume = tokens.reduce(
+      (acc, { volume }) => acc + parseFloat(formatEther(volume)),
+      0
+    );
+
+    const polygonBlock = await getBlockNumberForTimestamp(
+      Network.Polygon,
+      timestamp
+    );
+    const polygonTokens = await getVolumeAtBlock(Network.Polygon, polygonBlock);
+
+    polygon.quantity = polygonTokens.reduce(
+      (acc, { transactions }) => acc + transactions,
+      0
+    );
+    polygon.volume = polygonTokens.reduce(
       (acc, { volume }) => acc + parseFloat(formatEther(volume)),
       0
     );
@@ -101,49 +134,35 @@ const getDataForTimestamp = async (timestamp: number) => {
         Item: {
           timestamp,
           block,
-          volume,
-          quantity,
+          volume: ethereum.volume,
+          quantity: ethereum.quantity,
+          polygonVolume: polygon.volume,
+          polygonQuantity: polygon.quantity,
         },
       })
       .promise();
   } else {
-    volume = data.Item.volume;
-    quantity = data.Item.quantity;
+    ethereum.volume = data.Item.volume;
+    ethereum.quantity = data.Item.quantity;
+    polygon.volume = data.Item.polygonVolume;
+    polygon.quantity = data.Item.polygonQuantity;
   }
 
   return {
     timestamp,
-    ethereum: { volume, quantity },
+    ethereum,
+    polygon,
   };
 };
 
 export const handler = async (event) => {
   if (event?.queryStringParameters?.current) {
-    const tokens = await getVolumeAtBlock(Network.Ethereum);
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Credentials": true,
-      },
-      body: JSON.stringify({
-        ethereum: {
-          quantity: tokens.reduce(
-            (acc, { transactions }) => acc + transactions,
-            0
-          ),
-          volume: tokens.reduce(
-            (acc, { volume }) => acc + parseFloat(formatEther(volume)),
-            0
-          ),
-        },
-      }),
-    };
+    return await currentHandler();
   }
 
   const today = new Date();
   const timestamps = eachDayOfInterval({
-    start: subMonths(startOfMonth(today), 1),
+    start: subDays(startOfMonth(today), 60),
     end: today,
   }).map((date) => date.getTime() / 1000 - date.getTimezoneOffset() * 60);
 
@@ -159,6 +178,40 @@ export const handler = async (event) => {
     },
     body: JSON.stringify({
       data,
+    }),
+  };
+};
+
+const currentHandler = async () => {
+  const tokens = await getVolumeAtBlock(Network.Ethereum);
+  const polygonTokens = await getVolumeAtBlock(Network.Polygon);
+  return {
+    statusCode: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Credentials": true,
+    },
+    body: JSON.stringify({
+      ethereum: {
+        quantity: tokens.reduce(
+          (acc, { transactions }) => acc + transactions,
+          0
+        ),
+        volume: tokens.reduce(
+          (acc, { volume }) => acc + parseFloat(formatEther(volume)),
+          0
+        ),
+      },
+      polygon: {
+        quantity: polygonTokens.reduce(
+          (acc, { transactions }) => acc + transactions,
+          0
+        ),
+        volume: polygonTokens.reduce(
+          (acc, { volume }) => acc + parseFloat(formatEther(volume)),
+          0
+        ),
+      },
     }),
   };
 };

@@ -1,32 +1,25 @@
-import {
-  addDays,
-  eachDayOfInterval,
-  startOfMonth,
-  startOfWeek,
-  subDays,
-  subMonths,
-  subWeeks,
-} from "date-fns";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import { useCurrentData } from "../hooks/useCurrentData";
 import { useEthereumPrices } from "../hooks/useEthereumPrices";
 import { useHistoricalData } from "../hooks/useHistoricalData";
+import {
+  LAST_MONTH,
+  LAST_WEEK,
+  THIS_MONTH,
+  THIS_WEEK,
+  TODAY,
+  YESTERDAY,
+} from "../utils/dates";
 
-const today = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() / 1000;
-const yesterday = subDays(today * 1000, 1).getTime() / 1000;
-const thisWeek =
-  startOfWeek((today + new Date().getTimezoneOffset() * 60) * 1000).getTime() /
-    1000 -
-  new Date().getTimezoneOffset() * 60;
-const lastWeek = subWeeks(thisWeek * 1000, 1).getTime() / 1000;
-const thisMonth =
-  startOfMonth((today + new Date().getTimezoneOffset() * 60) * 1000).getTime() /
-    1000 -
-  new Date().getTimezoneOffset() * 60;
-const lastMonth = subMonths(thisMonth * 1000, 1).getTime() / 1000;
+export enum Network {
+  Ethereum = "ethereum",
+  Polygon = "polygon",
+}
 
 type State = {
-  ethPrice: number;
+  network: Network;
+  setNetwork: (network: Network) => void;
+  latestPrice: number;
   dailyVolume: number;
   weeklyVolume: number;
   monthlyVolume: number;
@@ -48,92 +41,84 @@ type OpenSeaProviderProps = {
 const OpenSeaContext = createContext<State | undefined>(undefined);
 
 const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
-  const { prices } = useEthereumPrices();
-  const { historicalData } = useHistoricalData();
-  const { ethereumVolume, ethereumQuantity } = useCurrentData();
+  const [network, setNetwork] = useState<Network>(Network.Ethereum);
+  const { latestPrice } = useEthereumPrices();
+  const { historicalData, latestData } = useHistoricalData();
+  const { ethereum, polygon } = useCurrentData();
 
-  const ethereumVolumes = historicalData.reduce(
-    (acc: any, { ethereum, timestamp }: any, i: number) => {
-      if (i === 0) return acc;
-      return acc.concat({
-        timestamp,
-        volume:
-          acc[i - 1].volume +
-          (ethereum.volume - historicalData[i - 1].ethereum.volume) *
-            prices[timestamp],
-      });
+  const current = {
+    ethereum: {
+      quantity: ethereum.quantity,
+      volume: latestData?.ethereum?.usdTotalVolumeChange
+        ? latestData.ethereum.usdTotalVolumeChange +
+          (ethereum.volume - latestData.ethereum.volume) * latestPrice
+        : 0,
     },
-    [{ timestamp: historicalData[0]?.timestamp, volume: 0 }]
-  );
+    polygon: {
+      quantity: polygon.quantity,
+      volume: latestData?.polygon?.usdTotalVolumeChange
+        ? latestData.polygon.usdTotalVolumeChange +
+          (polygon.volume - latestData.polygon.volume) * latestPrice
+        : 0,
+    },
+  };
 
-  const currentEthereumQuantity = ethereumQuantity;
-  const currentEthereumVolume =
-    ethereumVolumes.length > 1
-      ? ethereumVolumes[ethereumVolumes.length - 1].volume +
-        (ethereumVolume -
-          historicalData[historicalData.length - 1].ethereum.volume) *
-          prices[today]
-      : 0;
-
-  const ethereumVolumeDifference = (start: number, end?: number) => {
+  const volumeDifference = (start: number, end?: number) => {
     if (!historicalData.length) return 0;
-    const startVolume = ethereumVolumes.find(
+    const startVolume = historicalData.find(
       ({ timestamp }: any) => timestamp === start
-    ).volume;
+    )[network].usdTotalVolumeChange;
 
     if (!end) {
-      return currentEthereumVolume > 0
-        ? currentEthereumVolume - startVolume
+      return current[network].volume > 0
+        ? current[network].volume - startVolume
         : 0;
     }
 
-    const endVolume = ethereumVolumes.find(
+    const endVolume = historicalData.find(
       ({ timestamp }: any) => timestamp === end
-    ).volume;
+    )[network].usdTotalVolumeChange;
 
     return endVolume - startVolume;
   };
 
-  const ethereumQuantityDifference = (start: number, end?: number) => {
+  const quantityDifference = (start: number, end?: number) => {
     if (!historicalData.length) return 0;
     const startQuantity = historicalData.find(
       ({ timestamp }: any) => timestamp === start
-    ).ethereum.quantity;
+    )[network].quantity;
 
     if (!end) {
-      return currentEthereumQuantity > 0
-        ? currentEthereumQuantity - startQuantity
+      return current[network].quantity > 0
+        ? current[network].quantity - startQuantity
         : 0;
     }
 
     const endQuantity = historicalData.find(
       ({ timestamp }: any) => timestamp === end
-    ).ethereum.quantity;
+    )[network].quantity;
 
     return endQuantity - startQuantity;
   };
 
-  console.log(new Date(today * 1000));
-
   return (
     <OpenSeaContext.Provider
       value={{
-        ethPrice: prices[today],
-        dailyVolume: ethereumVolumeDifference(today),
-        weeklyVolume: ethereumVolumeDifference(thisWeek),
-        monthlyVolume: ethereumVolumeDifference(thisMonth),
-        previousDailyVolume: ethereumVolumeDifference(yesterday, today),
-        previousWeeklyVolume: ethereumVolumeDifference(lastWeek, thisWeek),
-        previousMonthlyVolume: ethereumVolumeDifference(lastMonth, thisMonth),
-        dailyQuantity: ethereumQuantityDifference(today),
-        weeklyQuantity: ethereumQuantityDifference(thisWeek),
-        monthlyQuantity: ethereumQuantityDifference(thisMonth),
-        previousDailyQuantity: ethereumQuantityDifference(yesterday, today),
-        previousWeeklyQuantity: ethereumQuantityDifference(lastWeek, thisWeek),
-        previousMonthlyQuantity: ethereumQuantityDifference(
-          lastMonth,
-          thisMonth
-        ),
+        network,
+        setNetwork,
+        latestPrice,
+        dailyVolume: volumeDifference(TODAY),
+        weeklyVolume: volumeDifference(THIS_WEEK),
+        monthlyVolume: volumeDifference(THIS_MONTH),
+        previousDailyVolume: volumeDifference(YESTERDAY, TODAY),
+        previousWeeklyVolume: volumeDifference(LAST_WEEK, THIS_WEEK),
+        previousMonthlyVolume: volumeDifference(LAST_MONTH, THIS_MONTH),
+        dailyQuantity: quantityDifference(TODAY),
+        weeklyQuantity: quantityDifference(THIS_WEEK),
+        monthlyQuantity: quantityDifference(THIS_MONTH),
+        previousDailyQuantity: quantityDifference(YESTERDAY, TODAY),
+        previousWeeklyQuantity: quantityDifference(LAST_WEEK, THIS_WEEK),
+        previousMonthlyQuantity: quantityDifference(LAST_MONTH, THIS_MONTH),
       }}
     >
       {children}
@@ -144,7 +129,7 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 const useOpenSea = () => {
   const context = useContext(OpenSeaContext);
   if (context === undefined) {
-    throw new Error("useCount must be used within a CountProvider");
+    throw new Error("useOpenSea must be used within a OpenSeaProvider");
   }
   return context;
 };

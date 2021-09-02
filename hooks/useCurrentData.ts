@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useInterval from "./useInterval";
 
 const ANALYTICS_API =
-  "https://pw1494iz47.execute-api.us-east-1.amazonaws.com/dev/analytics?current=true";
+  "https://vt8v9g7f6h.execute-api.us-east-1.amazonaws.com/dev/analytics?current=true";
 
 export const useCurrentData = () => {
   const [data, setData] = useState<any>();
@@ -22,7 +22,13 @@ export const useCurrentData = () => {
   }, 10000);
 
   return {
-    ethereumVolume: data?.ethereum?.volume || 0,
-    ethereumQuantity: data?.ethereum?.quantity || 0,
+    ethereum: {
+      volume: data?.ethereum?.volume || 0,
+      quantity: data?.ethereum?.quantity || 0,
+    },
+    polygon: {
+      volume: data?.polygon?.volume || 0,
+      quantity: data?.polygon?.quantity || 0,
+    },
   };
 };

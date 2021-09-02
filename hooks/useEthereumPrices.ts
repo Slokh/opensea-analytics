@@ -1,5 +1,6 @@
 import { addDays } from "date-fns";
 import { useEffect, useState } from "react";
+import { TODAY, YESTERDAY } from "../utils/dates";
 
 const PRICES_API =
   "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=90&interval=daily";
@@ -29,5 +30,6 @@ export const useEthereumPrices = () => {
 
   return {
     prices,
+    latestPrice: prices[TODAY],
   };
 };
