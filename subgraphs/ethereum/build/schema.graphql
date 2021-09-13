@@ -1,0 +1,82 @@
+type Asset @entity {
+  id: ID!
+  assetContract: AssetContract!
+  tokenId: String!
+  transfers: [Transfer!]! @derivedFrom(field: "asset")
+}
+
+type AssetContract @entity {
+  id: ID!
+  transfers: [Transfer!]! @derivedFrom(field: "assetContract")
+}
+
+type Account @entity {
+  id: ID!
+  buys: [Transfer!]! @derivedFrom(field: "to")
+  sells: [Transfer!]! @derivedFrom(field: "from")
+}
+
+type Transfer @entity {
+  id: ID!
+  block: BigInt!
+  timestamp: Int!
+  asset: Asset!
+  assetContract: AssetContract!
+  quantity: Int!
+  from: Account!
+  to: Account!
+  paymentToken: String!
+  paymentQuantity: BigInt!
+  royalty: BigInt!
+  fee: BigInt!
+}
+
+type PaymentToken @entity {
+  id: ID!
+  dataGroup: DataGroup!
+  timestamp: Int!
+  address: String!
+  volume: BigInt!
+  royalties: BigInt!
+  fees: BigInt!
+  transfers: Int!
+  newAssets: Int!
+  newAccounts: Int!
+}
+
+interface DataGroup {
+  id: ID!
+  paymentTokens: [PaymentToken!]! @derivedFrom(field: "dataGroup")
+}
+
+# Aggregate Data #
+
+type AggregateData implements DataGroup @entity {
+  id: ID!
+  timestamp: Int!
+  paymentTokens: [PaymentToken!]! @derivedFrom(field: "dataGroup")
+}
+
+# Hourly Data #
+
+type HourlyAggregateData implements DataGroup @entity {
+  id: ID!
+  timestamp: Int!
+  paymentTokens: [PaymentToken!]! @derivedFrom(field: "dataGroup")
+}
+
+# Daily Data #
+
+type DailyAggregateData implements DataGroup @entity {
+  id: ID!
+  timestamp: Int!
+  paymentTokens: [PaymentToken!]! @derivedFrom(field: "dataGroup")
+}
+
+# Legacy #
+
+type TokenAggregate @entity {
+  id: ID!
+  volume: BigInt!
+  transactions: Int!
+}
