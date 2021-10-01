@@ -23,7 +23,7 @@ const CustomTooltip = ({ dataKey, title, payload }: any) => {
     <Stack bgColor="#1E2D37" w={48} p={2} borderRadius={8} fontSize="sm">
       <Flex justify="space-between">
         <Text fontWeight="bold">Date</Text>
-        <Text>{format(data.timestamp * 1000, "LLL d, YYY")}</Text>
+        <Text>{format(data.timestamp * 1000, "LLL d, YYY hh:mm")}</Text>
       </Flex>
       <Flex justify="space-between">
         <Text fontWeight="bold">{title}</Text>

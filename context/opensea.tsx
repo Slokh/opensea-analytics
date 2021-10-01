@@ -40,7 +40,7 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
 
   useEffect(() => {
     if (prices) {
-      updatePeriod(Period.Monthly);
+      updatePeriod(Period.Daily);
     }
   }, [prices]);
 
