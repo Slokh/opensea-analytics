@@ -91,81 +91,83 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
       );
     } else if (newPeriod === Period.Monthly) {
       const monthlyAggregateData = await fetchMonthlyAggregateData();
-      setEthereumData(
-        monthlyAggregateData.reduce(
-          (arr: any[], { timestamp, paymentTokens }: any, i: number) => {
-            const periodData = paymentTokens.reduce(
-              (
-                acc: any,
+      if (monthlyAggregateData?.length) {
+        setEthereumData(
+          monthlyAggregateData.reduce(
+            (arr: any[], { timestamp, paymentTokens }: any, i: number) => {
+              const periodData = paymentTokens.reduce(
+                (
+                  acc: any,
+                  {
+                    volume,
+                    fees,
+                    royalties,
+                    transfers,
+                    newAccounts,
+                    newAssets,
+                  }: any
+                ) => {
+                  acc.volume += parseFloat(formatEther(volume));
+                  acc.fees += parseFloat(formatEther(fees));
+                  acc.royalties += parseFloat(formatEther(royalties));
+                  acc.transfers += transfers;
+                  acc.newAccounts += newAccounts;
+                  acc.newAssets += newAssets;
+                  return acc;
+                },
                 {
-                  volume,
-                  fees,
-                  royalties,
-                  transfers,
-                  newAccounts,
-                  newAssets,
-                }: any
-              ) => {
-                acc.volume += parseFloat(formatEther(volume));
-                acc.fees += parseFloat(formatEther(fees));
-                acc.royalties += parseFloat(formatEther(royalties));
-                acc.transfers += transfers;
-                acc.newAccounts += newAccounts;
-                acc.newAssets += newAssets;
-                return acc;
-              },
-              {
-                volume: 0,
-                fees: 0,
-                royalties: 0,
-                transfers: 0,
-                newAccounts: 0,
-                newAssets: 0,
+                  volume: 0,
+                  fees: 0,
+                  royalties: 0,
+                  transfers: 0,
+                  newAccounts: 0,
+                  newAssets: 0,
+                }
+              );
+
+              if (i === 0) {
+                arr.push({
+                  timestamp,
+                  volumeUSD: prices[timestamp]
+                    ? periodData.volume * prices[timestamp]
+                    : 0,
+                  feesUSD: prices[timestamp]
+                    ? periodData.fees * prices[timestamp]
+                    : 0,
+                  royaltiesUSD: prices[timestamp]
+                    ? periodData.royalties * prices[timestamp]
+                    : 0,
+                  ...periodData,
+                });
+              } else {
+                arr.push({
+                  timestamp,
+                  volumeUSD: prices[timestamp]
+                    ? periodData.volume * prices[timestamp] -
+                      arr[i - 1].volumeUSD
+                    : 0,
+                  feesUSD: prices[timestamp]
+                    ? periodData.fees * prices[timestamp] - arr[i - 1].feesUSD
+                    : 0,
+                  royaltiesUSD: prices[timestamp]
+                    ? periodData.royalties * prices[timestamp] -
+                      arr[i - 1].royaltiesUSD
+                    : 0,
+                  volume: periodData.volume - arr[i - 1].volume,
+                  fees: periodData.fees - arr[i - 1].fees,
+                  royalties: periodData.royalties - arr[i - 1].royalties,
+                  transfers: periodData.transfers - arr[i - 1].transfers,
+                  newAccounts: periodData.newAccounts - arr[i - 1].newAccounts,
+                  newAssets: periodData.newAssets - arr[i - 1].newAssets,
+                });
               }
-            );
 
-            if (i === 0) {
-              arr.push({
-                timestamp,
-                volumeUSD: prices[timestamp]
-                  ? periodData.volume * prices[timestamp]
-                  : 0,
-                feesUSD: prices[timestamp]
-                  ? periodData.fees * prices[timestamp]
-                  : 0,
-                royaltiesUSD: prices[timestamp]
-                  ? periodData.royalties * prices[timestamp]
-                  : 0,
-                ...periodData,
-              });
-            } else {
-              console.log(arr[i - 1]);
-              arr.push({
-                timestamp,
-                volumeUSD: prices[timestamp]
-                  ? periodData.volume * prices[timestamp] - arr[i - 1].volumeUSD
-                  : 0,
-                feesUSD: prices[timestamp]
-                  ? periodData.fees * prices[timestamp] - arr[i - 1].feesUSD
-                  : 0,
-                royaltiesUSD: prices[timestamp]
-                  ? periodData.royalties * prices[timestamp] -
-                    arr[i - 1].royaltiesUSD
-                  : 0,
-                volume: periodData.volume - arr[i - 1].volume,
-                fees: periodData.fees - arr[i - 1].fees,
-                royalties: periodData.royalties - arr[i - 1].royalties,
-                transfers: periodData.transfers - arr[i - 1].transfers,
-                newAccounts: periodData.newAccounts - arr[i - 1].newAccounts,
-                newAssets: periodData.newAssets - arr[i - 1].newAssets,
-              });
-            }
-
-            return arr;
-          },
-          []
-        )
-      );
+              return arr;
+            },
+            []
+          )
+        );
+      }
     } else {
       const dailyAggregateData = await fetchDailyAggregateData();
       setEthereumData(
@@ -217,6 +219,7 @@ const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
       );
     }
   };
+  console.log(ethereumData);
 
   return (
     <OpenSeaContext.Provider

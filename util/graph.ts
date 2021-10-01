@@ -68,7 +68,7 @@ export const fetchMonthlyAggregateData = async (): Promise<any> => {
 
 export const fetchDailyAggregateData = async (): Promise<any> => {
   const data = await fetchData(`{
-            dailyAggregateDatas(orderBy: timestamp, orderDirection: desc, first: 60) {
+            dailyAggregateDatas(orderBy: timestamp, orderDirection: desc, first: 90) {
               id
               timestamp
               paymentTokens (where: {address_in: ${JSON.stringify(
@@ -90,7 +90,7 @@ export const fetchDailyAggregateData = async (): Promise<any> => {
 
 export const fetchHourlyAggregateData = async (): Promise<any> => {
   const data = await fetchData(`{
-            hourlyAggregateDatas(orderBy: timestamp, orderDirection: desc, first: 60) {
+            hourlyAggregateDatas(orderBy: timestamp, orderDirection: desc, first: 168) {
               id
               timestamp
               paymentTokens (where: {address_in: ${JSON.stringify(

@@ -20,7 +20,8 @@ const GenericBarChart = ({ label, field }: any) => {
     : undefined;
 
   const isCurrency = ["volume", "fees", "royalties"].includes(field);
-  const _field = isCurrency ? `${field}USD` : field;
+  const _field =
+    isCurrency && currency === Currency.USD ? `${field}USD` : field;
 
   return (
     <Stack p={4}>
