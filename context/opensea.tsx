@@ -1,37 +1,29 @@
-import { createContext, useContext, useState } from "react";
-import { useCurrentData } from "../hooks/useCurrentData";
+import { formatEther } from "@ethersproject/units";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useEthereumPrices } from "../hooks/useEthereumPrices";
-import { useHistoricalData } from "../hooks/useHistoricalData";
 import {
-  LAST_MONTH,
-  LAST_WEEK,
-  THIS_MONTH,
-  THIS_WEEK,
-  TODAY,
-  YESTERDAY,
-} from "../utils/dates";
+  fetchDailyAggregateData,
+  fetchHourlyAggregateData,
+  fetchMonthlyAggregateData,
+} from "../util/graph";
 
-export enum Network {
-  Ethereum = "ethereum",
-  Polygon = "polygon",
+export enum Currency {
+  Ethereum = "ETH",
+  USD = "USD",
+}
+
+export enum Period {
+  Monthly = "Monthly",
+  Daily = "Daily",
+  Hourly = "Hourly",
 }
 
 type State = {
-  network: Network;
-  setNetwork: (network: Network) => void;
-  latestPrice: number;
-  dailyVolume: number;
-  weeklyVolume: number;
-  monthlyVolume: number;
-  previousDailyVolume: number;
-  previousWeeklyVolume: number;
-  previousMonthlyVolume: number;
-  dailyQuantity: number;
-  weeklyQuantity: number;
-  monthlyQuantity: number;
-  previousDailyQuantity: number;
-  previousWeeklyQuantity: number;
-  previousMonthlyQuantity: number;
+  ethereumData: any;
+  currency: any;
+  setCurrency: any;
+  period: any;
+  updatePeriod: any;
 };
 
 type OpenSeaProviderProps = {
@@ -41,85 +33,194 @@ type OpenSeaProviderProps = {
 const OpenSeaContext = createContext<State | undefined>(undefined);
 
 const OpenSeaProvider = ({ children }: OpenSeaProviderProps) => {
-  const [network, setNetwork] = useState<Network>(Network.Ethereum);
-  const { latestPrice } = useEthereumPrices();
-  const { historicalData, latestData } = useHistoricalData();
-  const { ethereum, polygon } = useCurrentData();
+  const [ethereumData, setEthereumData] = useState<any>([]);
+  const { prices, latestPrice } = useEthereumPrices();
+  const [currency, setCurrency] = useState<Currency>(Currency.Ethereum);
+  const [period, setPeriod] = useState<Period>(Period.Daily);
 
-  const current = {
-    ethereum: {
-      quantity: ethereum.quantity,
-      volume: latestData?.ethereum?.usdTotalVolumeChange
-        ? latestData.ethereum.usdTotalVolumeChange +
-          (ethereum.volume - latestData.ethereum.volume) * latestPrice
-        : 0,
-    },
-    polygon: {
-      quantity: polygon.quantity,
-      volume: latestData?.polygon?.usdTotalVolumeChange
-        ? latestData.polygon.usdTotalVolumeChange +
-          (polygon.volume - latestData.polygon.volume) * latestPrice
-        : 0,
-    },
-  };
-
-  const volumeDifference = (start: number, end?: number) => {
-    if (!historicalData.length) return 0;
-    const startVolume = historicalData.find(
-      ({ timestamp }: any) => timestamp === start
-    )[network].usdTotalVolumeChange;
-
-    if (!end) {
-      return current[network].volume > 0
-        ? current[network].volume - startVolume
-        : 0;
+  useEffect(() => {
+    if (prices) {
+      updatePeriod(Period.Monthly);
     }
+  }, [prices]);
 
-    const endVolume = historicalData.find(
-      ({ timestamp }: any) => timestamp === end
-    )[network].usdTotalVolumeChange;
+  const updatePeriod = async (newPeriod: Period) => {
+    setPeriod(newPeriod);
+    if (newPeriod === Period.Hourly) {
+      const hourlyAggregateData = await fetchHourlyAggregateData();
+      setEthereumData(
+        hourlyAggregateData.map(({ timestamp, paymentTokens }: any) => {
+          const periodData = paymentTokens.reduce(
+            (
+              acc: any,
+              {
+                volume,
+                fees,
+                royalties,
+                transfers,
+                newAccounts,
+                newAssets,
+              }: any
+            ) => {
+              acc.volume += parseFloat(formatEther(volume));
+              acc.fees += parseFloat(formatEther(fees));
+              acc.royalties += parseFloat(formatEther(royalties));
+              acc.transfers += transfers;
+              acc.newAccounts += newAccounts;
+              acc.newAssets += newAssets;
+              return acc;
+            },
+            {
+              volume: 0,
+              fees: 0,
+              royalties: 0,
+              transfers: 0,
+              newAccounts: 0,
+              newAssets: 0,
+            }
+          );
 
-    return endVolume - startVolume;
-  };
+          return {
+            timestamp,
+            volumeUSD: latestPrice ? periodData.volume * latestPrice : 0,
+            feesUSD: latestPrice ? periodData.fees * latestPrice : 0,
+            royaltiesUSD: latestPrice ? periodData.royalties * latestPrice : 0,
+            ...periodData,
+          };
+        })
+      );
+    } else if (newPeriod === Period.Monthly) {
+      const monthlyAggregateData = await fetchMonthlyAggregateData();
+      setEthereumData(
+        monthlyAggregateData.reduce(
+          (arr: any[], { timestamp, paymentTokens }: any, i: number) => {
+            const periodData = paymentTokens.reduce(
+              (
+                acc: any,
+                {
+                  volume,
+                  fees,
+                  royalties,
+                  transfers,
+                  newAccounts,
+                  newAssets,
+                }: any
+              ) => {
+                acc.volume += parseFloat(formatEther(volume));
+                acc.fees += parseFloat(formatEther(fees));
+                acc.royalties += parseFloat(formatEther(royalties));
+                acc.transfers += transfers;
+                acc.newAccounts += newAccounts;
+                acc.newAssets += newAssets;
+                return acc;
+              },
+              {
+                volume: 0,
+                fees: 0,
+                royalties: 0,
+                transfers: 0,
+                newAccounts: 0,
+                newAssets: 0,
+              }
+            );
 
-  const quantityDifference = (start: number, end?: number) => {
-    if (!historicalData.length) return 0;
-    const startQuantity = historicalData.find(
-      ({ timestamp }: any) => timestamp === start
-    )[network].quantity;
+            if (i === 0) {
+              arr.push({
+                timestamp,
+                volumeUSD: prices[timestamp]
+                  ? periodData.volume * prices[timestamp]
+                  : 0,
+                feesUSD: prices[timestamp]
+                  ? periodData.fees * prices[timestamp]
+                  : 0,
+                royaltiesUSD: prices[timestamp]
+                  ? periodData.royalties * prices[timestamp]
+                  : 0,
+                ...periodData,
+              });
+            } else {
+              console.log(arr[i - 1]);
+              arr.push({
+                timestamp,
+                volumeUSD: prices[timestamp]
+                  ? periodData.volume * prices[timestamp] - arr[i - 1].volumeUSD
+                  : 0,
+                feesUSD: prices[timestamp]
+                  ? periodData.fees * prices[timestamp] - arr[i - 1].feesUSD
+                  : 0,
+                royaltiesUSD: prices[timestamp]
+                  ? periodData.royalties * prices[timestamp] -
+                    arr[i - 1].royaltiesUSD
+                  : 0,
+                volume: periodData.volume - arr[i - 1].volume,
+                fees: periodData.fees - arr[i - 1].fees,
+                royalties: periodData.royalties - arr[i - 1].royalties,
+                transfers: periodData.transfers - arr[i - 1].transfers,
+                newAccounts: periodData.newAccounts - arr[i - 1].newAccounts,
+                newAssets: periodData.newAssets - arr[i - 1].newAssets,
+              });
+            }
 
-    if (!end) {
-      return current[network].quantity > 0
-        ? current[network].quantity - startQuantity
-        : 0;
+            return arr;
+          },
+          []
+        )
+      );
+    } else {
+      const dailyAggregateData = await fetchDailyAggregateData();
+      setEthereumData(
+        dailyAggregateData.map(({ timestamp, paymentTokens }: any) => {
+          const periodData = paymentTokens.reduce(
+            (
+              acc: any,
+              {
+                volume,
+                fees,
+                royalties,
+                transfers,
+                newAccounts,
+                newAssets,
+              }: any
+            ) => {
+              acc.volume += parseFloat(formatEther(volume));
+              acc.fees += parseFloat(formatEther(fees));
+              acc.royalties += parseFloat(formatEther(royalties));
+              acc.transfers += transfers;
+              acc.newAccounts += newAccounts;
+              acc.newAssets += newAssets;
+              return acc;
+            },
+            {
+              volume: 0,
+              fees: 0,
+              royalties: 0,
+              transfers: 0,
+              newAccounts: 0,
+              newAssets: 0,
+            }
+          );
+
+          return {
+            timestamp,
+            volumeUSD: prices[timestamp]
+              ? periodData.volume * prices[timestamp]
+              : 0,
+            feesUSD: prices[timestamp]
+              ? periodData.fees * prices[timestamp]
+              : 0,
+            royaltiesUSD: prices[timestamp]
+              ? periodData.royalties * prices[timestamp]
+              : 0,
+            ...periodData,
+          };
+        })
+      );
     }
-
-    const endQuantity = historicalData.find(
-      ({ timestamp }: any) => timestamp === end
-    )[network].quantity;
-
-    return endQuantity - startQuantity;
   };
 
   return (
     <OpenSeaContext.Provider
-      value={{
-        network,
-        setNetwork,
-        latestPrice,
-        dailyVolume: volumeDifference(TODAY),
-        weeklyVolume: volumeDifference(THIS_WEEK),
-        monthlyVolume: volumeDifference(THIS_MONTH),
-        previousDailyVolume: volumeDifference(YESTERDAY, TODAY),
-        previousWeeklyVolume: volumeDifference(LAST_WEEK, THIS_WEEK),
-        previousMonthlyVolume: volumeDifference(LAST_MONTH, THIS_MONTH),
-        dailyQuantity: quantityDifference(TODAY),
-        weeklyQuantity: quantityDifference(THIS_WEEK),
-        monthlyQuantity: quantityDifference(THIS_MONTH),
-        previousDailyQuantity: quantityDifference(YESTERDAY, TODAY),
-        previousWeeklyQuantity: quantityDifference(LAST_WEEK, THIS_WEEK),
-        previousMonthlyQuantity: quantityDifference(LAST_MONTH, THIS_MONTH),
-      }}
+      value={{ ethereumData, currency, setCurrency, period, updatePeriod }}
     >
       {children}
     </OpenSeaContext.Provider>
