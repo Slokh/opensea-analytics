@@ -1,6 +1,8 @@
 import { Button } from "@chakra-ui/button";
 import { Image } from "@chakra-ui/image";
 import { Flex, Heading, SimpleGrid, Stack, Text } from "@chakra-ui/layout";
+import { Skeleton, SkeletonText } from "@chakra-ui/skeleton";
+import { Spinner } from "@chakra-ui/react";
 import { commify } from "@ethersproject/units";
 import { format } from "date-fns";
 import { NextPage } from "next";
@@ -9,7 +11,7 @@ import { BarChart } from "../components/BarChart";
 import { Currency, Period, useOpenSea } from "../context/opensea";
 
 const GenericBarChart = ({ label, field }: any) => {
-  const { ethereumData, currency, period } = useOpenSea();
+  const { ethereumData, currency, period, loading } = useOpenSea();
 
   const current = ethereumData.length
     ? ethereumData[ethereumData.length - 1]
@@ -27,9 +29,11 @@ const GenericBarChart = ({ label, field }: any) => {
     <Stack p={4}>
       <Flex justify="space-between" pl={8} pr={8} align="center">
         <Heading fontSize="xl">{label}</Heading>
-        <Stack direction="row" align="center">
-          {current && (
-            <Flex direction="column" w={40} align="flex-end">
+        <Stack direction="row" align="center" spacing={8} h={12}>
+          {loading ? (
+            <SkeletonText w={24} noOfLines={1} skeletonHeight={6} />
+          ) : (
+            <Flex direction="column" align="flex-end">
               <Text
                 fontSize="xs"
                 fontWeight="bold"
@@ -53,8 +57,10 @@ const GenericBarChart = ({ label, field }: any) => {
               </Text>
             </Flex>
           )}
-          {previous && (
-            <Flex direction="column" w={40} align="flex-end">
+          {loading ? (
+            <SkeletonText w={24} noOfLines={1} skeletonHeight={6} />
+          ) : (
+            <Flex direction="column" align="flex-end">
               <Text
                 fontSize="xs"
                 fontWeight="bold"
@@ -81,6 +87,7 @@ const GenericBarChart = ({ label, field }: any) => {
         </Stack>
       </Flex>
       <BarChart
+        loading={loading}
         data={ethereumData}
         dataKey={_field}
         title={label}
@@ -88,8 +95,13 @@ const GenericBarChart = ({ label, field }: any) => {
           Number.isNaN(t) || t === 0 || t == "auto"
             ? ""
             : period === Period.Hourly
-            ? format(new Date(t * 1000), "HH:mm")
+            ? format(new Date(t * 1000), "LLL d HH:mm")
             : format(new Date(t * 1000), "LLL do")
+        }
+        tooltipFormatter={(t: any) =>
+          period === Period.Hourly
+            ? format(t * 1000, "LLL d, YYY hh:mm")
+            : format(t * 1000, "LLL d, YYY")
         }
       />
     </Stack>
@@ -133,6 +145,7 @@ const Charts: NextPage = () => {
         </Button>
         <Button
           size="sm"
+          isDisabled={period === Period.Monthly}
           onClick={() =>
             setCurrency(
               currency === Currency.Ethereum ? Currency.USD : Currency.Ethereum
